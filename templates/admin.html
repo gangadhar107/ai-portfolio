@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel — AI Portfolio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0f0f0f;
+            color: #f5f0e8;
+            font-family: 'Inter', -apple-system, sans-serif;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1.5px solid #2a2a2a;
+        }
+
+        .header h1 {
+            color: #e8d44d;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .header a {
+            color: #888;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .header a:hover {
+            color: #e8d44d;
+        }
+
+        .form-card {
+            background: #1a1a1a;
+            border: 1.5px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 0 #2a2a2a;
+        }
+
+        .form-card h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: #f5f0e8;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            color: #ccc;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 0.4rem;
+        }
+
+        .form-group .required::after {
+            content: " *";
+            color: #ff6b6b;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.7rem 0.9rem;
+            background: #0f0f0f;
+            border: 1.5px solid #333;
+            border-radius: 8px;
+            color: #f5f0e8;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            border-color: #e8d44d;
+        }
+
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 0.8rem;
+            margin-top: 0.5rem;
+            background: #e8d44d;
+            color: #0f0f0f;
+            border: 1.5px solid #0f0f0f;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 3px 0 #b8a830;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 0 #b8a830;
+        }
+
+        .submit-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #b8a830;
+        }
+
+        /* Success result */
+        .success-card {
+            background: #1a1a1a;
+            border: 1.5px solid #1A7A4A;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 0 #134f32;
+        }
+
+        .success-card h3 {
+            color: #4ade80;
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .success-card .detail {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid #2a2a2a;
+            font-size: 0.9rem;
+        }
+
+        .success-card .detail:last-child {
+            border-bottom: none;
+        }
+
+        .success-card .detail .label {
+            color: #888;
+        }
+
+        .success-card .detail .value {
+            color: #f5f0e8;
+            font-weight: 500;
+        }
+
+        .ref-link {
+            display: block;
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            background: #0f0f0f;
+            border: 1.5px solid #e8d44d;
+            border-radius: 8px;
+            color: #e8d44d;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            word-break: break-all;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .ref-link:hover {
+            background: rgba(232, 212, 77, 0.1);
+        }
+
+        @media (max-width: 480px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            body {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Add Application</h1>
+            <a href="/dashboard">→ Dashboard</a>
+        </div>
+
+        {% if success and result %}
+        <div class="success-card">
+            <h3>✅ Application Saved</h3>
+            <div class="detail">
+                <span class="label">Company</span>
+                <span class="value">{{ result.company_name }}</span>
+            </div>
+            <div class="detail">
+                <span class="label">Position</span>
+                <span class="value">{{ result.position }}</span>
+            </div>
+            <div class="detail">
+                <span class="label">Ref Code</span>
+                <span class="value" style="font-family: 'JetBrains Mono', monospace;">{{ result.ref_code }}</span>
+            </div>
+            <div class="ref-link"
+                onclick="navigator.clipboard.writeText('{{ result.ref_link }}'); this.textContent='✅ Copied!'">
+                {{ result.ref_link }}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="form-card">
+            <h2>New Job Application</h2>
+            <form method="POST" action="/admin/application">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="required">Company Name</label>
+                        <input type="text" name="company_name" placeholder="e.g. TechCorp AI" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="required">Position</label>
+                        <input type="text" name="position" placeholder="e.g. ML Engineer" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Contact Person</label>
+                        <input type="text" name="person_name" placeholder="e.g. Sarah Chen">
+                    </div>
+                    <div class="form-group">
+                        <label>Date Applied</label>
+                        <input type="date" name="date_applied">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea name="notes" placeholder="Any notes about this application..."></textarea>
+                </div>
+                <button type="submit" class="submit-btn">Generate Ref Link & Save</button>
+            </form>
+        </div>
+    </div>
+</body>
+
+</html>

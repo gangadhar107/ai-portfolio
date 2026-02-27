@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="{% block meta_description %}AI-Powered Portfolio — Full Stack Developer building with Python, FastAPI, and AI{% endblock %}">
+    <title>{% block title %}AI Portfolio{% endblock %}</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">
+                <span class="nav-logo-icon">◆</span>
+                <span class="nav-logo-text">Portfolio</span>
+            </a>
+            <div class="nav-links" id="navLinks">
+                <a href="/" class="nav-link {% if active_page == 'home' %}active{% endif %}">Home</a>
+                <a href="/about" class="nav-link {% if active_page == 'about' %}active{% endif %}">About</a>
+                <a href="/projects" class="nav-link {% if active_page == 'projects' %}active{% endif %}">Projects</a>
+                <a href="/blog" class="nav-link {% if active_page == 'blog' %}active{% endif %}">Blog</a>
+                <a href="/contact" class="nav-link {% if active_page == 'contact' %}active{% endif %}">Contact</a>
+            </div>
+            <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-left">
+                <span class="footer-logo">◆ Portfolio</span>
+                <p class="footer-tagline">Building with purpose. Shipping with data.</p>
+            </div>
+            <div class="footer-links">
+                <a href="https://github.com/gangadhar107" target="_blank" rel="noopener">GitHub</a>
+                <a href="https://www.linkedin.com/in/allamgangadhar/" target="_blank" rel="noopener">LinkedIn</a>
+                <a href="mailto:gangadhar.allam2810@gmail.com">Email</a>
+                <a href="/contact">Contact</a>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2025 AI Portfolio. Built with FastAPI + PostgreSQL.</p>
+                <span class="footer-badge">🟢 Open to Work</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Mobile Nav Script -->
+    <script>
+        const toggle = document.getElementById('navToggle');
+        const links = document.getElementById('navLinks');
+        toggle.addEventListener('click', () => {
+            links.classList.toggle('open');
+            toggle.classList.toggle('open');
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

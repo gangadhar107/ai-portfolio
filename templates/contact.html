@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Contact — Gangadhar Allam{% endblock %}
+{% block meta_description %}Get in touch — let's talk about AI, data, or open roles.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .contact-header {
+        padding: 2rem 0 1rem;
+    }
+
+    .contact-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+
+    /* Quick Reach */
+    .quick-reach h3 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin-bottom: 1.25rem;
+    }
+
+    .reach-methods {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .reach-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+    }
+
+    .reach-item .reach-icon {
+        font-size: 1.25rem;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--accent-dim);
+        border-radius: 10px;
+        flex-shrink: 0;
+    }
+
+    .reach-item .reach-info {
+        flex: 1;
+    }
+
+    .reach-item .reach-label {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .reach-item .reach-value {
+        font-size: 0.95rem;
+        color: var(--text-primary);
+        font-weight: 500;
+        margin-top: 0.15rem;
+    }
+
+    .reach-item .reach-value a {
+        color: var(--accent);
+    }
+
+    /* Calendly */
+    .calendly-section {
+        padding: 2rem;
+    }
+
+    .calendly-section h3 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .calendly-section p {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+        line-height: 1.6;
+    }
+
+    .calendly-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.85rem 1.75rem;
+        background: var(--accent);
+        color: var(--bg-primary);
+        border: 1.5px solid var(--bg-primary);
+        border-radius: var(--radius-sm);
+        font-family: var(--font-body);
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: var(--shadow-btn);
+        transition: transform 0.1s, box-shadow 0.1s;
+        text-decoration: none;
+    }
+
+    .calendly-btn:hover {
+        color: var(--bg-primary);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 0 #b8a830;
+    }
+
+    .calendly-btn:active {
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 #b8a830;
+    }
+
+    .contact-note {
+        margin-top: 2.5rem;
+        padding: 1.5rem;
+        background: var(--bg-card);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+        border-left: 4px solid var(--accent);
+    }
+
+    .contact-note h4 {
+        color: var(--accent);
+        font-size: 0.9rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .contact-note p {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+
+    @media (max-width: 768px) {
+        .contact-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="contact-header">
+    <h1 class="section-title">Let's Talk</h1>
+    <p class="section-subtitle">Whether it's a role, a project idea, or just a conversation about tech — I'm always up
+        for it.</p>
+</section>
+
+<div class="contact-grid">
+    <div class="quick-reach">
+        <h3>Quick Reach</h3>
+        <div class="reach-methods">
+            <div class="card reach-item">
+                <div class="reach-icon">📧</div>
+                <div class="reach-info">
+                    <div class="reach-label">Email</div>
+                    <div class="reach-value"><a
+                            href="mailto:gangadhar.allam2810@gmail.com">gangadhar.allam2810@gmail.com</a></div>
+                </div>
+            </div>
+            <div class="card reach-item">
+                <div class="reach-icon">🔗</div>
+                <div class="reach-info">
+                    <div class="reach-label">LinkedIn</div>
+                    <div class="reach-value"><a href="https://www.linkedin.com/in/allamgangadhar/"
+                            target="_blank">linkedin.com/in/allamgangadhar</a></div>
+                </div>
+            </div>
+            <div class="card reach-item">
+                <div class="reach-icon">💻</div>
+                <div class="reach-info">
+                    <div class="reach-label">GitHub</div>
+                    <div class="reach-value"><a href="https://github.com/gangadhar107"
+                            target="_blank">github.com/gangadhar107</a></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card calendly-section">
+        <h3>📅 Book a 30-Minute Chat</h3>
+        <p>
+            Skip the emails. Pick a time that works for you and let's have a real conversation.
+            I'm available for interviews, technical discussions, and project conversations.
+        </p>
+        <a href="{{ calendly_link or '#' }}" target="_blank" class="calendly-btn">
+            Schedule Meeting →
+        </a>
+    </div>
+</div>
+
+<div class="contact-note">
+    <h4>A note about my job search</h4>
+    <p>
+        I'm an ex-Junior Data Analyst pivoting into AI-powered development. I'm looking for
+        AI Engineer, Analytics Engineer, Vibe Coder, or any role where data meets code.
+        I'm open to remote, hybrid, or on-site. If you're hiring or know someone
+        who is, I'd genuinely love to connect.
+    </p>
+</div>
+{% endblock %}

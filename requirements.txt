@@ -1,0 +1,21 @@
+# AI Portfolio — Python Dependencies
+# v1.0: FastAPI + PostgreSQL + Jinja2
+
+# Web framework
+fastapi==0.115.0
+uvicorn[standard]==0.30.0
+
+# Templates
+Jinja2==3.1.4
+
+# Database (psycopg3 — modern driver, Python 3.13 compatible)
+psycopg[binary]==3.3.3
+
+# Environment
+python-dotenv==1.0.1
+
+# Form handling
+python-multipart>=0.0.6
+
+# Static files
+aiofiles==24.1.0

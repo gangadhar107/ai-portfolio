@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}About — AI Portfolio{% endblock %}
+{% block meta_description %}Learn about my journey from curiosity to building AI-powered applications.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .about-header {
+        padding: 2rem 0 1rem;
+    }
+
+    .about-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 3rem;
+        margin-top: 2rem;
+    }
+
+    .about-story h3 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+        color: var(--accent);
+    }
+
+    .about-story p {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        line-height: 1.8;
+        margin-bottom: 1.5rem;
+    }
+
+    .about-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .info-card {
+        padding: 1.25rem;
+    }
+
+    .info-card h4 {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.75rem;
+    }
+
+    .info-card ul {
+        list-style: none;
+    }
+
+    .info-card li {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        padding: 0.35rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .info-card li::before {
+        content: "◆";
+        color: var(--accent);
+        font-size: 0.5rem;
+    }
+
+    /* Values */
+    .values-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .value-card {
+        padding: 1.5rem;
+        text-align: center;
+    }
+
+    .value-card .value-icon {
+        font-size: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .value-card h4 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .value-card p {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        line-height: 1.5;
+    }
+
+    @media (max-width: 768px) {
+        .about-content {
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        .values-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="about-header">
+    <h1 class="section-title">About Me</h1>
+    <p class="section-subtitle">The honest version — where I've been, what I'm doing, and where I'm going.</p>
+</section>
+
+<section class="about-content">
+    <div class="about-story">
+        <h3>The Beginning</h3>
+        <p>
+            I started my career as a Junior Data Analyst — writing SQL queries, building
+            dashboards, cleaning messy datasets, and turning raw numbers into stories that
+            helped teams make better decisions. That's where I learned that data isn't just
+            numbers — it's leverage.
+        </p>
+
+        <h3>The Pivot</h3>
+        <p>
+            Working with data showed me what software could do, but I wanted to build the
+            tools themselves. When AI started changing everything, I didn't just watch — I
+            started building. I taught myself Python, FastAPI, and dove into vibe coding:
+            using AI as a co-pilot to ship faster than ever before.
+        </p>
+
+        <h3>Right Now</h3>
+        <p>
+            I'm building this portfolio as proof of that journey. It's not just a website —
+            it tracks which companies actually view my work using opaque ref codes, has a
+            private analytics dashboard, and will eventually include a RAG-powered chatbot.
+            Every feature exists because it solves a real problem in my job search.
+        </p>
+    </div>
+
+    <div class="about-sidebar">
+        <div class="card info-card">
+            <h4>Stack I Work With</h4>
+            <ul>
+                <li>Python (FastAPI, Flask)</li>
+                <li>SQL / PostgreSQL / Data Analysis</li>
+                <li>JavaScript / HTML / CSS</li>
+                <li>Git & GitHub</li>
+                <li>AI Vibe Coding (Cursor, Copilot)</li>
+                <li>LangChain / RAG (learning)</li>
+            </ul>
+        </div>
+
+        <div class="card info-card">
+            <h4>What I'm Learning</h4>
+            <ul>
+                <li>AI-assisted development workflows</li>
+                <li>RAG architecture & vector DBs</li>
+                <li>Multi-agent systems</li>
+                <li>Production deployment (Vercel, Neon)</li>
+            </ul>
+        </div>
+
+        <div class="card info-card">
+            <h4>What I Value</h4>
+            <ul>
+                <li>Ship fast, iterate with data</li>
+                <li>Use AI to amplify, not replace thinking</li>
+                <li>Solve real problems, not build demos</li>
+                <li>Be honest about what you know and don't</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<hr class="divider">
+
+<section>
+    <h2 class="section-title">How I Work</h2>
+    <div class="values-grid">
+        <div class="card value-card">
+            <div class="value-icon">📐</div>
+            <h4>Build Less</h4>
+            <p>Every feature must solve a real problem. No scope creep, no building for building's sake.</p>
+        </div>
+        <div class="card value-card">
+            <div class="value-icon">🚀</div>
+            <h4>Ship Faster</h4>
+            <p>A working v1 today beats a perfect v2 next month. Get it live, get feedback, improve.</p>
+        </div>
+        <div class="card value-card">
+            <div class="value-icon">📊</div>
+            <h4>Measure Everything</h4>
+            <p>Data drives decisions. This portfolio tracks its own performance — that's the philosophy.</p>
+        </div>
+    </div>
+</section>
+{% endblock %}

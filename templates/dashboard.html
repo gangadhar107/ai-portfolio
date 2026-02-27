@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — Analytics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f0f0f;
+            --bg2: #161616;
+            --card: #1a1a1a;
+            --text: #f5f0e8;
+            --text2: #a0a0a0;
+            --muted: #666;
+            --accent: #e8d44d;
+            --accent-dim: rgba(232, 212, 77, 0.15);
+            --border: #2a2a2a;
+            --green: #4ade80;
+            --orange: #f97316;
+            --red: #ff6b6b;
+            --blue: #60a5fa;
+            --radius: 12px;
+            --font: 'Inter', sans-serif;
+            --mono: 'JetBrains Mono', monospace;
+        }
+
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        /* Layout */
+        .dash-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dash-header h1 {
+            font-size: 1.3rem;
+            font-weight: 800;
+        }
+
+        .dash-header .back-link {
+            font-size: 0.85rem;
+            color: var(--text2);
+        }
+
+        .dash-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem;
+        }
+
+        /* Stat Cards */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem;
+        }
+
+        .stat-card .stat-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text2);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            font-family: var(--mono);
+            line-height: 1;
+        }
+
+        .stat-card .stat-sub {
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-top: 0.35rem;
+        }
+
+        .stat-accent {
+            color: var(--accent);
+        }
+
+        .stat-green {
+            color: var(--green);
+        }
+
+        .stat-blue {
+            color: var(--blue);
+        }
+
+        .stat-orange {
+            color: var(--orange);
+        }
+
+        /* Charts Row */
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-card {
+            background: var(--card);
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem;
+        }
+
+        .chart-card h3 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+
+        .chart-wrap {
+            position: relative;
+            height: 220px;
+        }
+
+        /* Insight Strip */
+        .insights-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .insight-card {
+            background: var(--card);
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1rem;
+            border-left: 3px solid var(--accent);
+        }
+
+        .insight-card h4 {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.35rem;
+        }
+
+        .insight-card .insight-val {
+            font-size: 1.5rem;
+            font-weight: 800;
+            font-family: var(--mono);
+        }
+
+        .insight-card p {
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-top: 0.2rem;
+        }
+
+        /* Table */
+        .table-section h2 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            background: var(--card);
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg2);
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            font-size: 0.85rem;
+            color: var(--text2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .company-name {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .badge-viewed {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            background: rgba(74, 222, 128, 0.1);
+            color: var(--green);
+            border: 1px solid rgba(74, 222, 128, 0.2);
+        }
+
+        .badge-unviewed {
+            font-size: 0.7rem;
+            color: var(--muted);
+        }
+
+        .view-count {
+            font-family: var(--mono);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        /* Outcome dropdown */
+        .outcome-form {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .outcome-select {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.3rem 0.5rem;
+            font-size: 0.8rem;
+            font-family: var(--font);
+            cursor: pointer;
+        }
+
+        .outcome-select:focus {
+            border-color: var(--accent);
+            outline: none;
+        }
+
+        .outcome-btn {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            border-radius: 6px;
+            padding: 0.3rem 0.6rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: var(--font);
+        }
+
+        .outcome-btn:hover {
+            background: #f0e060;
+        }
+
+        /* Outcome badges */
+        .outcome-pending {
+            color: var(--orange);
+        }
+
+        .outcome-got_call {
+            color: var(--green);
+        }
+
+        .outcome-rejected {
+            color: var(--red);
+        }
+
+        .outcome-no_response {
+            color: var(--muted);
+        }
+
+        @media (max-width: 900px) {
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+
+            .insights-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .stats-row {
+                grid-template-columns: 1fr;
+            }
+
+            .dash-container {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="dash-header">
+        <h1>📊 Portfolio Analytics</h1>
+        <a href="/" class="back-link">← Back to Portfolio</a>
+    </header>
+
+    <div class="dash-container">
+
+        <!-- Stat Cards -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-label">Total Applied</div>
+                <div class="stat-value stat-accent">{{ total_apps }}</div>
+                <div class="stat-sub">Applications tracked</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Portfolio Viewed</div>
+                <div class="stat-value stat-green">{{ viewed_count }}</div>
+                <div class="stat-sub">{{ view_rate }}% view rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Got Calls</div>
+                <div class="stat-value stat-blue">{{ calls_count }}</div>
+                <div class="stat-sub">{{ conversion_rate }}% conversion</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Conversion Rate</div>
+                <div class="stat-value stat-orange">{{ conversion_rate }}%</div>
+                <div class="stat-sub">Applied → Got Call</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-row">
+            <div class="chart-card">
+                <h3>📈 Weekly View Trend</h3>
+                <div class="chart-wrap"><canvas id="weeklyChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <h3>📊 Applications by Position</h3>
+                <div class="chart-wrap"><canvas id="positionChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Insight Cards -->
+        <div class="insights-row">
+            <div class="insight-card">
+                <h4>Avg Days to View</h4>
+                <div class="insight-val">{{ avg_days_to_view }}</div>
+                <p>From application to first view</p>
+            </div>
+            <div class="insight-card">
+                <h4>High Intent</h4>
+                <div class="insight-val">{{ high_intent_count }}</div>
+                <p>Viewed your portfolio 2+ times</p>
+            </div>
+            <div class="insight-card">
+                <h4>View Rate</h4>
+                <div class="insight-val">{{ view_rate }}%</div>
+                <p>Of all applications viewed your work</p>
+            </div>
+        </div>
+
+        <!-- Applications Table -->
+        <div class="table-section">
+            <h2>All Applications</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th>Position</th>
+                            <th>Applied</th>
+                            <th>Views</th>
+                            <th>Status</th>
+                            <th>First Viewed</th>
+                            <th>Outcome</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for app in applications %}
+                        <tr>
+                            <td>
+                                <span class="company-name">{{ app.company_name }}</span>
+                                {% if app.person_name %}<br><span style="font-size:0.75rem;color:var(--muted)">{{
+                                    app.person_name }}</span>{% endif %}
+                            </td>
+                            <td>{{ app.position }}</td>
+                            <td style="font-family:var(--mono);font-size:0.8rem">{{
+                                app.date_applied.strftime('%Y-%m-%d') if app.date_applied else '—' }}</td>
+                            <td>
+                                {% if app.visit_count > 0 %}
+                                <span class="view-count" style="color:var(--green)">{{ app.visit_count }}</span>
+                                <span class="badge-viewed">👁 Viewed</span>
+                                {% else %}
+                                <span class="badge-unviewed">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if app.visit_count > 1 %}
+                                <span style="font-size:0.7rem;font-weight:600;color:var(--accent)">🔥 High Intent</span>
+                                {% elif app.visit_count > 0 %}
+                                <span style="font-size:0.7rem;color:var(--green)">✓ Viewed</span>
+                                {% else %}
+                                <span style="font-size:0.7rem;color:var(--muted)">Not viewed</span>
+                                {% endif %}
+                            </td>
+                            <td style="font-size:0.8rem;font-family:var(--mono)">
+                                {{ app.first_visit.strftime('%b %d, %H:%M') if app.first_visit else '—' }}
+                            </td>
+                            <td>
+                                <form action="/dashboard/update-outcome" method="post" class="outcome-form">
+                                    <input type="hidden" name="application_id" value="{{ app.id }}">
+                                    <select name="outcome" class="outcome-select" onchange="this.form.submit()">
+                                        <option value="pending" {% if app.outcome=='pending' %}selected{% endif %}>⏳
+                                            Pending</option>
+                                        <option value="got_call" {% if app.outcome=='got_call' %}selected{% endif %}>📞
+                                            Got Call</option>
+                                        <option value="rejected" {% if app.outcome=='rejected' %}selected{% endif %}>❌
+                                            Rejected</option>
+                                        <option value="no_response" {% if app.outcome=='no_response' %}selected{% endif
+                                            %}>🔇 No Response</option>
+                                    </select>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Chart.js Initialization -->
+    <script>
+        Chart.defaults.color = '#a0a0a0';
+        Chart.defaults.borderColor = '#2a2a2a';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+
+        // Weekly Trend Chart
+        const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
+        new Chart(weeklyCtx, {
+            type: 'line',
+            data: {
+                labels: {{ weekly_labels| safe }},
+            datasets: [{
+                label: 'Total Views',
+                data: {{ weekly_views| safe }},
+            borderColor: '#e8d44d',
+            backgroundColor: 'rgba(232,212,77,0.1)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointBackgroundColor: '#e8d44d'
+            }, {
+                label: 'Unique Refs',
+                data: {{ weekly_unique| safe }},
+            borderColor: '#4ade80',
+            backgroundColor: 'rgba(74,222,128,0.05)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            pointBackgroundColor: '#4ade80'
+            }]
+        },
+            options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15, font: { size: 11 } } }
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: '#1e1e1e' } },
+                x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+            }
+        }
+    });
+
+        // Position Chart
+        const posCtx = document.getElementById('positionChart').getContext('2d');
+        new Chart(posCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ position_labels| safe }},
+            datasets: [{
+                label: 'Applied',
+                data: {{ position_applied| safe }},
+            backgroundColor: 'rgba(232,212,77,0.6)',
+            borderColor: '#e8d44d',
+            borderWidth: 1,
+            borderRadius: 4
+            }, {
+                label: 'Viewed',
+                data: {{ position_viewed| safe }},
+            backgroundColor: 'rgba(74,222,128,0.5)',
+            borderColor: '#4ade80',
+            borderWidth: 1,
+            borderRadius: 4
+            }, {
+                label: 'Got Call',
+                data: {{ position_calls| safe }},
+            backgroundColor: 'rgba(96,165,250,0.5)',
+            borderColor: '#60a5fa',
+            borderWidth: 1,
+            borderRadius: 4
+            }]
+        },
+            options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15, font: { size: 11 } } }
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: '#1e1e1e' } },
+                x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+            }
+        }
+    });
+    </script>
+
+</body>
+
+</html>

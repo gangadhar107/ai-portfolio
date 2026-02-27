@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}Gangadhar Allam — AI Builder & Data Analyst{% endblock %}
+{% block meta_description %}Ex-Junior Data Analyst turned AI builder. Building AI-powered tools with Python, FastAPI,
+and PostgreSQL. Open to AI Engineer and Analytics roles.{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Hero */
+    .hero {
+        padding: 4rem 0 3rem;
+        text-align: center;
+    }
+
+    .hero-badge {
+        margin-bottom: 1.5rem;
+    }
+
+    .hero h1 {
+        font-size: 3.2rem;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+        margin-bottom: 1rem;
+    }
+
+    .hero h1 .line2 {
+        color: var(--accent);
+    }
+
+    .hero-sub {
+        color: var(--text-secondary);
+        font-size: 1.15rem;
+        max-width: 520px;
+        margin: 0 auto 2rem;
+        line-height: 1.7;
+    }
+
+    .hero-ctas {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    /* Stats Strip */
+    .stats-strip {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin: 3rem 0;
+    }
+
+    .stat-item {
+        text-align: center;
+        padding: 1.5rem;
+        background: var(--bg-card);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+    }
+
+    .stat-item .stat-num {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--accent);
+        font-family: var(--font-mono);
+    }
+
+    .stat-item .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
+    }
+
+    /* Featured Projects */
+    .featured {
+        margin-top: 1rem;
+    }
+
+    .featured-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .featured-card {
+        padding: 1.5rem;
+    }
+
+    .featured-card h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .featured-card p {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        line-height: 1.6;
+    }
+
+    .featured-card .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+    }
+
+    /* Currently section */
+    .currently {
+        margin-top: 3rem;
+        padding: 2rem;
+        background: var(--bg-card);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+        border-left: 4px solid var(--accent);
+    }
+
+    .currently h3 {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 0.75rem;
+    }
+
+    .currently ul {
+        list-style: none;
+    }
+
+    .currently li {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        padding: 0.3rem 0;
+        padding-left: 1.25rem;
+        position: relative;
+    }
+
+    .currently li::before {
+        content: "→";
+        position: absolute;
+        left: 0;
+        color: var(--accent);
+    }
+
+    @media (max-width: 768px) {
+        .hero h1 {
+            font-size: 2.2rem;
+        }
+
+        .hero-sub {
+            font-size: 1rem;
+        }
+
+        .stats-strip {
+            grid-template-columns: 1fr;
+        }
+
+        .featured-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-badge">
+        <span class="badge badge-green">🟢 Open to Work</span>
+    </div>
+    <h1>
+        Data meets code.<br>
+        <span class="line2">I build AI that ships.</span>
+    </h1>
+    <p class="hero-sub">
+        Ex-Junior Data Analyst turned AI builder. I combine data intuition with
+        full-stack development to create AI-powered tools that solve real problems.
+    </p>
+    <div class="hero-ctas">
+        <a href="/projects" class="btn btn-primary">View Projects →</a>
+        <a href="/contact" class="btn btn-secondary">Book a Chat</a>
+    </div>
+</section>
+
+<!-- Stats -->
+<section class="stats-strip">
+    <div class="stat-item">
+        <div class="stat-num">1+</div>
+        <div class="stat-label">Year in Data</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-num">5+</div>
+        <div class="stat-label">Projects Built</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-num">AI</div>
+        <div class="stat-label">Now Building With</div>
+    </div>
+</section>
+
+<hr class="divider">
+
+<!-- Featured Projects -->
+<section class="featured">
+    <h2 class="section-title">Featured Work</h2>
+    <p class="section-subtitle">Some things I've built recently.</p>
+
+    <div class="featured-grid">
+        <div class="card featured-card">
+            <h3>🚀 AI-Powered Portfolio</h3>
+            <p>This very site — tracks which companies view my portfolio using opaque ref codes, with a private
+                analytics dashboard.</p>
+            <div class="tags">
+                <span class="tag">Python</span>
+                <span class="tag">FastAPI</span>
+                <span class="tag">PostgreSQL</span>
+                <span class="tag">Jinja2</span>
+            </div>
+        </div>
+        <div class="card featured-card">
+            <h3>🤖 CBT Assessment System</h3>
+            <p>Computer-based testing platform with timed assessments, automatic grading, and PDF result generation.</p>
+            <div class="tags">
+                <span class="tag">JavaScript</span>
+                <span class="tag">HTML/CSS</span>
+                <span class="tag">PDF Generation</span>
+            </div>
+        </div>
+    </div>
+
+    <div style="margin-top: 1.5rem; text-align: center;">
+        <a href="/projects" class="btn btn-secondary">All Projects →</a>
+    </div>
+</section>
+
+<hr class="divider">
+
+<!-- Currently -->
+<section class="currently">
+    <h3>What I'm working on right now</h3>
+    <ul>
+        <li>Building this AI-powered portfolio with ref code tracking</li>
+        <li>Exploring vibe coding — building with AI as a co-pilot</li>
+        <li>Deepening SQL analytics skills for data-driven job search</li>
+        <li>Preparing v2.0: RAG chatbot with Groq free tier</li>
+        <li>Actively applying for AI Engineer / Analytics / Vibe Coding roles</li>
+    </ul>
+</section>
+{% endblock %}

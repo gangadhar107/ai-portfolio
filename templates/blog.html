@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Blog — AI Portfolio{% endblock %}
+{% block meta_description %}Thoughts on building, learning, and the honest reality of breaking into tech.{% endblock %}
+
+{% block extra_css %}
+<style>
+    .blog-header {
+        padding: 2rem 0 1rem;
+    }
+
+    .blog-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .blog-card {
+        padding: 1.75rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 2rem;
+    }
+
+    .blog-card:hover {
+        cursor: pointer;
+    }
+
+    .blog-card .blog-content {
+        flex: 1;
+    }
+
+    .blog-card .blog-meta {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        margin-bottom: 0.5rem;
+    }
+
+    .blog-card h3 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        transition: color 0.2s;
+    }
+
+    .blog-card:hover h3 {
+        color: var(--accent);
+    }
+
+    .blog-card p {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+
+    .blog-card .blog-tags {
+        display: flex;
+        gap: 0.4rem;
+        margin-top: 0.75rem;
+    }
+
+    .blog-card .read-time {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        white-space: nowrap;
+        margin-top: 0.3rem;
+    }
+
+    .coming-soon {
+        text-align: center;
+        padding: 3rem;
+        color: var(--text-muted);
+        border: 1.5px dashed var(--border);
+        border-radius: var(--radius);
+        margin-top: 1rem;
+    }
+
+    .coming-soon h3 {
+        color: var(--text-secondary);
+        margin-bottom: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .blog-card {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="blog-header">
+    <h1 class="section-title">Blog</h1>
+    <p class="section-subtitle">Honest writing about building, learning, and the job search grind.</p>
+</section>
+
+<div class="blog-grid">
+
+    <div class="card blog-card">
+        <div class="blog-content">
+            <div class="blog-meta">2025-02-27</div>
+            <h3>Why I Built a Portfolio That Tracks Its Own Performance</h3>
+            <p>Most portfolios are static brochures. Mine is an analytics tool. I explain why I built a ref code
+                tracking system into my portfolio and what the data tells me about my job search.</p>
+            <div class="blog-tags">
+                <span class="tag">Building</span>
+                <span class="tag">Analytics</span>
+            </div>
+        </div>
+        <div class="read-time">4 min read</div>
+    </div>
+
+    <div class="card blog-card">
+        <div class="blog-content">
+            <div class="blog-meta">2025-02-20</div>
+            <h3>From Zero to FastAPI: What I Wish I Knew</h3>
+            <p>A candid look at the learning curve of FastAPI, the mistakes I made, and the patterns that actually
+                matter when building your first production application.</p>
+            <div class="blog-tags">
+                <span class="tag">Python</span>
+                <span class="tag">FastAPI</span>
+                <span class="tag">Learning</span>
+            </div>
+        </div>
+        <div class="read-time">6 min read</div>
+    </div>
+
+    <div class="card blog-card">
+        <div class="blog-content">
+            <div class="blog-meta">2025-02-15</div>
+            <h3>The Art of the $0 Tech Stack</h3>
+            <p>How I host a full-stack application with PostgreSQL, email notifications, and analytics for exactly
+                $0/month. Every tool I use and why.</p>
+            <div class="blog-tags">
+                <span class="tag">DevOps</span>
+                <span class="tag">Free Tier</span>
+            </div>
+        </div>
+        <div class="read-time">5 min read</div>
+    </div>
+
+</div>
+
+<div class="coming-soon">
+    <h3>More posts coming soon</h3>
+    <p>I write when I have something worth saying. No filler content.</p>
+</div>
+{% endblock %}
