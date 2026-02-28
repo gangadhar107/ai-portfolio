@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}Projects — AI Portfolio{% endblock %}
-{% block meta_description %}My project portfolio — real problems solved with Python, FastAPI, SQL, and AI.{% endblock %}
+{% block title %}Projects — Gangadhar Allam{% endblock %}
+{% block meta_description %}Real projects with real problems. See what I've built and the decisions behind each one.{%
+endblock %}
 
 {% block extra_css %}
 <style>
@@ -9,63 +10,59 @@
         padding: 2rem 0 1rem;
     }
 
-    .projects-grid {
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
-        margin-top: 1.5rem;
-    }
-
     .project-card {
+        background: var(--bg-card);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
         padding: 2rem;
+        margin-bottom: 1.5rem;
+        transition: border-color 0.2s;
     }
 
-    .project-card .project-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 1rem;
+    .project-card:hover {
+        border-color: var(--accent);
     }
 
-    .project-card h3 {
-        font-size: 1.25rem;
-        font-weight: 700;
+    .project-name {
+        font-size: 1.3rem;
+        font-weight: 800;
+        margin-bottom: 0.25rem;
     }
 
-    .project-card .project-desc {
+    .project-tagline {
         color: var(--text-secondary);
-        font-size: 0.95rem;
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
         font-style: italic;
-        margin-bottom: 1.25rem;
     }
 
     .project-sections {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
-        margin-bottom: 1.25rem;
+        gap: 1.25rem;
     }
 
     .project-section h4 {
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: var(--accent);
+        font-size: 0.75rem;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.06em;
+        color: var(--accent);
         margin-bottom: 0.5rem;
     }
 
     .project-section p {
         color: var(--text-secondary);
-        font-size: 0.9rem;
-        line-height: 1.6;
+        font-size: 0.88rem;
+        line-height: 1.65;
     }
 
     .project-footer {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        padding-top: 1.25rem;
+        justify-content: space-between;
+        margin-top: 1.5rem;
+        padding-top: 1rem;
         border-top: 1px solid var(--border);
     }
 
@@ -75,19 +72,9 @@
         gap: 0.4rem;
     }
 
-    .project-footer .project-links {
-        display: flex;
-        gap: 0.75rem;
-    }
-
-    .project-footer .project-links a {
+    .project-footer .project-link {
         font-size: 0.85rem;
         font-weight: 600;
-        color: var(--text-secondary);
-        transition: color 0.2s;
-    }
-
-    .project-footer .project-links a:hover {
         color: var(--accent);
     }
 
@@ -95,144 +82,135 @@
         .project-sections {
             grid-template-columns: 1fr;
         }
-
-        .project-footer {
-            flex-direction: column;
-            gap: 1rem;
-            align-items: flex-start;
-        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <section class="projects-header">
-    <h1 class="section-title">Projects</h1>
-    <p class="section-subtitle">Real problems, real solutions. Each project has a story.</p>
+    <h1 class="section-title">What I've Built</h1>
+    <p class="section-subtitle">Real projects. Real problems. Here's the thinking behind each one.</p>
 </section>
 
-<div class="projects-grid">
+<!-- Project 1: AI Portfolio -->
+<div class="project-card">
+    <h3 class="project-name">🚀 AI-Powered Portfolio</h3>
+    <p class="project-tagline">A portfolio that tracks its own performance.</p>
 
-    <!-- Project 1: AI Portfolio -->
-    <div class="card project-card">
-        <div class="project-top">
-            <h3>🚀 AI-Powered Portfolio</h3>
-            <span class="badge badge-green">Live</span>
+    <div class="project-sections">
+        <div class="project-section">
+            <h4>Problem</h4>
+            <p>I was sending job applications but had zero visibility into whether anyone actually looked at my
+                portfolio. I was flying blind — no data, no feedback loop, no way to prioritize follow-ups.</p>
         </div>
-        <p class="project-desc">Track which companies actually view your portfolio — with silent ref code tracking and a
-            private analytics dashboard.</p>
-
-        <div class="project-sections">
-            <div class="project-section">
-                <h4>The Problem</h4>
-                <p>When you apply to jobs, you have zero visibility into whether anyone actually looks at your work.
-                    You're flying blind.</p>
-            </div>
-            <div class="project-section">
-                <h4>My Approach</h4>
-                <p>Generate unique opaque ref codes for each application. Track visits silently. Build a dashboard with
-                    conversion analytics.</p>
-            </div>
-            <div class="project-section">
-                <h4>What I Built</h4>
-                <p>FastAPI backend with PostgreSQL, Jinja2 templates, ref code generator, visit logger, email
-                    notifications, and a private analytics dashboard.</p>
-            </div>
-            <div class="project-section">
-                <h4>What I Learned</h4>
-                <p>Database design with real constraints, session management, Python secrets module, and the value of
-                    building measurement into everything.</p>
-            </div>
+        <div class="project-section">
+            <h4>Solution</h4>
+            <p>Built a full-stack portfolio with an opaque ref code system. Each job application gets a unique tracking
+                link. When a recruiter clicks it, the visit is silently logged and I get an email notification. A
+                private analytics dashboard shows who viewed, when, and how often.</p>
         </div>
-
-        <div class="project-footer">
-            <div class="tags">
-                <span class="tag">Python</span>
-                <span class="tag">FastAPI</span>
-                <span class="tag">PostgreSQL</span>
-                <span class="tag">Jinja2</span>
-                <span class="tag">psycopg3</span>
-            </div>
-            <div class="project-links">
-                <a href="https://github.com/gangadhar107/ai-portfolio" target="_blank">GitHub →</a>
-            </div>
+        <div class="project-section">
+            <h4>Impact</h4>
+            <p>I can now see exactly which companies engage with my work. High-intent signals (2+ views) tell me where
+                to focus follow-ups. The dashboard gives me a data-driven job search instead of guesswork.</p>
+        </div>
+        <div class="project-section">
+            <h4>My Role</h4>
+            <p>Full architecture, backend (FastAPI + PostgreSQL), frontend (Jinja2 templates), SQL analytics (7 custom
+                queries), Chart.js dashboards, security hardening (rate limiting, input validation), and deployment to
+                Vercel + Neon.</p>
         </div>
     </div>
 
-    <!-- Project 2: CBT Assessment -->
-    <div class="card project-card">
-        <div class="project-top">
-            <h3>🤖 CBT Assessment System</h3>
-            <span class="badge badge-accent">Completed</span>
+    <div class="project-footer">
+        <div class="tags">
+            <span class="tag">Python</span>
+            <span class="tag">FastAPI</span>
+            <span class="tag">PostgreSQL</span>
+            <span class="tag">Jinja2</span>
+            <span class="tag">Chart.js</span>
+            <span class="tag">Vercel</span>
         </div>
-        <p class="project-desc">A computer-based testing platform with timed assessments, automatic grading, and
-            downloadable PDF results.</p>
-
-        <div class="project-sections">
-            <div class="project-section">
-                <h4>The Problem</h4>
-                <p>Manual assessment grading is slow and error-prone. Students need immediate feedback and a record of
-                    their performance.</p>
-            </div>
-            <div class="project-section">
-                <h4>My Approach</h4>
-                <p>Built a web-based system that handles timing, question navigation, auto-grading, answer review, and
-                    PDF generation — all client-side.</p>
-            </div>
-            <div class="project-section">
-                <h4>What I Built</h4>
-                <p>Timed test interface, question navigation, automatic scoring, detailed results screen with answer
-                    review, and PDF download functionality.</p>
-            </div>
-            <div class="project-section">
-                <h4>What I Learned</h4>
-                <p>Client-side state management, timer implementation, PDF generation in the browser, and handling edge
-                    cases in user interaction flows.</p>
-            </div>
-        </div>
-
-        <div class="project-footer">
-            <div class="tags">
-                <span class="tag">JavaScript</span>
-                <span class="tag">HTML/CSS</span>
-                <span class="tag">PDF Generation</span>
-            </div>
-            <div class="project-links">
-                <a href="https://github.com/gangadhar107" target="_blank">GitHub →</a>
-            </div>
-        </div>
+        <a href="https://github.com/gangadhar107/ai-portfolio" target="_blank" class="project-link">GitHub →</a>
     </div>
-
-    <!-- Project 3: Booking System -->
-    <div class="card project-card">
-        <div class="project-top">
-            <h3>📅 Portfolio Booking System</h3>
-            <span class="badge badge-accent">In Progress</span>
-        </div>
-        <p class="project-desc">Integrated booking system for portfolio visitors to schedule meetings, with calendar UI
-            and notification integrations.</p>
-
-        <div class="project-sections">
-            <div class="project-section">
-                <h4>The Problem</h4>
-                <p>Recruiters interested in your work need an easy, low-friction way to schedule a conversation without
-                    back-and-forth emails.</p>
-            </div>
-            <div class="project-section">
-                <h4>My Approach</h4>
-                <p>Embed a booking widget directly in the portfolio with Calendly integration for frictionless
-                    scheduling.</p>
-            </div>
-        </div>
-
-        <div class="project-footer">
-            <div class="tags">
-                <span class="tag">Calendly API</span>
-                <span class="tag">FastAPI</span>
-                <span class="tag">Integration</span>
-            </div>
-        </div>
-    </div>
-
 </div>
+
+<!-- Project 2: CBT Assessment System -->
+<div class="project-card">
+    <h3 class="project-name">🤖 CBT Assessment System</h3>
+    <p class="project-tagline">A timed testing platform that replaced manual grading.</p>
+
+    <div class="project-sections">
+        <div class="project-section">
+            <h4>Problem</h4>
+            <p>Manual exam grading was slow, error-prone, and didn't scale. Instructors spent hours grading papers that
+                could be automated. Students had no instant feedback.</p>
+        </div>
+        <div class="project-section">
+            <h4>Solution</h4>
+            <p>Built a computer-based testing platform with timed assessments, automatic scoring, instant results
+                display, and PDF certificate generation. Students get feedback the moment they finish.</p>
+        </div>
+        <div class="project-section">
+            <h4>Impact</h4>
+            <p>Eliminated manual grading entirely. Instructors save hours per exam cycle. Students get immediate,
+                detailed results with downloadable PDF reports they can share.</p>
+        </div>
+        <div class="project-section">
+            <h4>My Role</h4>
+            <p>Full frontend architecture. Built the timer logic, question navigation, auto-scoring engine, results
+                visualization, and PDF generation. Designed the responsive UI from scratch.</p>
+        </div>
+    </div>
+
+    <div class="project-footer">
+        <div class="tags">
+            <span class="tag">JavaScript</span>
+            <span class="tag">HTML/CSS</span>
+            <span class="tag">PDF Generation</span>
+            <span class="tag">Timer Logic</span>
+        </div>
+        <a href="https://github.com/gangadhar107" target="_blank" class="project-link">GitHub →</a>
+    </div>
+</div>
+
+<!-- Project 3: Booking System -->
+<div class="project-card">
+    <h3 class="project-name">📅 Portfolio Booking System</h3>
+    <p class="project-tagline">Let recruiters book time with me — without the email ping-pong.</p>
+
+    <div class="project-sections">
+        <div class="project-section">
+            <h4>Problem</h4>
+            <p>After sending applications, scheduling calls involved 3-4 back-and-forth emails just to find a time. This
+                friction killed conversion — recruiters would lose interest before the call happened.</p>
+        </div>
+        <div class="project-section">
+            <h4>Solution</h4>
+            <p>Integrated a booking system directly into my portfolio. Visitors pick an available time slot, I get
+                notified instantly, and a calendar event is created automatically. Zero email required.</p>
+        </div>
+        <div class="project-section">
+            <h4>Impact</h4>
+            <p>Reduced scheduling friction from days to seconds. Recruiters can go from viewing my portfolio to booking
+                a call in one click. Professional impression — shows I build tools to solve my own problems.</p>
+        </div>
+        <div class="project-section">
+            <h4>My Role</h4>
+            <p>Designed the schema, built the React calendar UI, implemented backend API routes, and integrated with
+                third-party services for notifications. End-to-end ownership.</p>
+        </div>
+    </div>
+
+    <div class="project-footer">
+        <div class="tags">
+            <span class="tag">React</span>
+            <span class="tag">Next.js</span>
+            <span class="tag">Supabase</span>
+            <span class="tag">API Integration</span>
+        </div>
+        <a href="https://github.com/gangadhar107" target="_blank" class="project-link">GitHub →</a>
+    </div>
+</div>
+
 {% endblock %}
