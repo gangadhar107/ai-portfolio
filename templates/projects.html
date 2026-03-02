@@ -143,37 +143,39 @@ endblock %}
     <div class="project-sections">
         <div class="project-section">
             <h4>Problem</h4>
-            <p>While preparing for the GATE examination, I needed realistic CBT mock tests that matched the actual exam
-                UI. Commercial platforms charged money for something that's essentially a timer + question navigator. I
-                decided to build my own instead of paying.</p>
+            <p>While preparing for the GATE examination, I needed realistic CBT mock tests. Commercial platforms charged
+                money for something that's essentially a timer + question navigator. I decided to build my own authentic
+                simulator instead of paying.</p>
         </div>
         <div class="project-section">
             <h4>Solution</h4>
-            <p>Built a full CBT exam simulator that mirrors real competitive exam interfaces — timed assessments,
-                question palette navigation, mark-for-review, auto-scoring, instant results with detailed analysis, and
-                downloadable PDF reports.</p>
+            <p>Engineered a framework-free CBT simulator in <b>vanilla JS</b>. It features an authentic scientific
+                calculator (using a custom safe math parser instead of <code>eval()</code>), a 4-layer JSON validation
+                engine for uploading question banks, an on-screen NAT keypad, and <code>localStorage</code> persistence.
+            </p>
         </div>
         <div class="project-section">
             <h4>Impact</h4>
-            <p>Got unlimited free mock exams with a UI that felt exactly like the real GATE CBT. Zero cost. Built a tool
-                I actually used daily during my prep — and it's reusable for any exam format.</p>
+            <p>Got unlimited free mock exams with a UI that felt exactly like the real GATE CBT. By relying on clean
+                layered architecture instead of frameworks, the app is blazing fast and deployable anywhere. I used it
+                daily during my prep.</p>
         </div>
         <div class="project-section">
             <h4>My Role</h4>
-            <p>Everything. Designed the exam UI from scratch by studying real CBT interfaces. Built the countdown timer,
-                question navigation, mark-for-review system, auto-scoring engine, results dashboard, and PDF generation.
-            </p>
+            <p>Solo developer. Architected the modular vanilla JS codebase. Built the countdown timer, MCQ/MSQ/NAT
+                scoring logic, question palette state machine, custom calculator, and test export pipelines
+                (TXT/CSV/PDF).</p>
         </div>
     </div>
 
     <div class="project-footer">
         <div class="tags">
-            <span class="tag">JavaScript</span>
+            <span class="tag">Vanilla JS</span>
             <span class="tag">HTML/CSS</span>
-            <span class="tag">PDF Generation</span>
-            <span class="tag">Timer Logic</span>
+            <span class="tag">Math Parser</span>
+            <span class="tag">JSON Validation</span>
         </div>
-        <a href="https://github.com/gangadhar107" target="_blank" class="project-link">GitHub →</a>
+        <a href="https://cbt-mock-engine.vercel.app/" target="_blank" class="project-link">Live Site →</a>
     </div>
 </div>
 
