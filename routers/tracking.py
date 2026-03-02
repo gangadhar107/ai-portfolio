@@ -256,29 +256,37 @@ async def generate_ref_endpoint(
 @router.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
     """Private admin page — application submission form."""
-    return templates.TemplateResponse("admin.html", {"request": request})
+    auth = request.cookies.get("auth")
+    if auth != DASHBOARD_PASSWORD:
+        return templates.TemplateResponse("admin_login.html", {
+            "request": request,
+            "redirect_to": "/admin"
+        })
+    return templates.TemplateResponse("admin.html", {"request": request, "authenticated": True})
 
 
 @router.post("/admin/login")
-async def admin_login(request: Request, password: str = Form(...)):
-    """Verify admin password and redirect to admin panel."""
+async def admin_login(
+    request: Request, 
+    password: str = Form(...),
+    redirect_to: str = Form("/admin")
+):
+    """Verify admin password and redirect to the requested page."""
     if password != DASHBOARD_PASSWORD:
         return templates.TemplateResponse("admin_login.html", {
             "request": request,
-            "error": "Incorrect password"
+            "error": "Incorrect password",
+            "redirect_to": redirect_to
         })
-    response = RedirectResponse(url="/admin/panel", status_code=303)
+    response = RedirectResponse(url=redirect_to, status_code=303)
     response.set_cookie("auth", DASHBOARD_PASSWORD, httponly=True, samesite="strict")
     return response
 
 
 @router.get("/admin/panel", response_class=HTMLResponse)
 async def admin_panel(request: Request):
-    """Admin panel with application form — requires auth cookie."""
-    auth = request.cookies.get("auth")
-    if auth != DASHBOARD_PASSWORD:
-        return templates.TemplateResponse("admin_login.html", {"request": request})
-    return templates.TemplateResponse("admin.html", {"request": request, "authenticated": True})
+    """Legacy admin panel route — redirects to /admin."""
+    return RedirectResponse(url="/admin", status_code=303)
 
 
 @router.post("/admin/application")

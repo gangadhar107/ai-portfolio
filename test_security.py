@@ -26,8 +26,8 @@ print("\n1. Route Protection")
 r = requests.get(f"{BASE}/dashboard", allow_redirects=False)
 test("Dashboard without auth returns login page (200 with login form)", r.status_code == 200 and "password" in r.text.lower())
 
-r = requests.get(f"{BASE}/admin/panel", allow_redirects=False)
-test("Admin panel without auth returns login page", r.status_code == 200 and "password" in r.text.lower())
+r = requests.get(f"{BASE}/admin", allow_redirects=False)
+test("Admin page without auth returns login page", r.status_code == 200 and "password" in r.text.lower())
 
 # 2. Invalid password
 print("\n2. Invalid Credentials")
