@@ -66,15 +66,15 @@ async def projects(request: Request, ref: str = None):
     })
 
 
-@app.get("/blog")
-async def blog(request: Request, ref: str = None):
-    """Blog page."""
-    if ref:
-        log_visit(ref, request)
-    return templates.TemplateResponse("blog.html", {
-        "request": request,
-        "active_page": "blog"
-    })
+# @app.get("/blog")
+# async def blog(request: Request, ref: str = None):
+#     """Blog page."""
+#     if ref:
+#         log_visit(ref, request)
+#     return templates.TemplateResponse("blog.html", {
+#         "request": request,
+#         "active_page": "blog"
+#     })
 
 
 @app.get("/contact")
