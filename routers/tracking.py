@@ -7,6 +7,8 @@ Includes rate limiting and input validation.
 import os
 import re
 import html
+import hmac
+import hashlib
 import secrets
 import string
 import smtplib
@@ -68,6 +70,16 @@ router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "changeme")
+
+# ─── Session Token (replaces storing plaintext password in cookie) ───
+# HMAC-sign the password so the cookie never contains the actual password.
+# Same password always produces the same token, so sessions survive restarts.
+SESSION_TOKEN = hmac.new(
+    key=b"portfolio-session-key",
+    msg=DASHBOARD_PASSWORD.encode(),
+    digestmod=hashlib.sha256
+).hexdigest()
+
 BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8000")
 NOTIFICATION_EMAIL = os.getenv("NOTIFICATION_EMAIL", "")
 NOTIFICATION_EMAIL_PASSWORD = os.getenv("NOTIFICATION_EMAIL_PASSWORD", "")
@@ -76,8 +88,8 @@ NOTIFICATION_EMAIL_PASSWORD = os.getenv("NOTIFICATION_EMAIL_PASSWORD", "")
 # ─── Auth Middleware ───
 
 def verify_password(password: str):
-    """Simple password check for admin/dashboard routes."""
-    if password != DASHBOARD_PASSWORD:
+    """Timing-safe password check for admin/dashboard routes."""
+    if not hmac.compare_digest(password, DASHBOARD_PASSWORD):
         raise HTTPException(status_code=403, detail="Access denied")
     return True
 
@@ -256,8 +268,8 @@ async def generate_ref_endpoint(
 @router.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
     """Private admin page — application submission form."""
-    auth = request.cookies.get("auth")
-    if auth != DASHBOARD_PASSWORD:
+    auth = request.cookies.get("auth", "")
+    if not hmac.compare_digest(auth, SESSION_TOKEN):
         return templates.TemplateResponse("admin_login.html", {
             "request": request,
             "redirect_to": "/admin"
@@ -272,14 +284,14 @@ async def admin_login(
     redirect_to: str = Form("/admin")
 ):
     """Verify admin password and redirect to the requested page."""
-    if password != DASHBOARD_PASSWORD:
+    if not hmac.compare_digest(password, DASHBOARD_PASSWORD):
         return templates.TemplateResponse("admin_login.html", {
             "request": request,
             "error": "Incorrect password",
             "redirect_to": redirect_to
         })
     response = RedirectResponse(url=redirect_to, status_code=303)
-    response.set_cookie("auth", DASHBOARD_PASSWORD, httponly=True, samesite="strict")
+    response.set_cookie("auth", SESSION_TOKEN, httponly=True, samesite="strict")
     return response
 
 
@@ -299,8 +311,8 @@ async def submit_application(
     date_applied: str = Form("")
 ):
     """Save a new application and return the generated ref link."""
-    auth = request.cookies.get("auth")
-    if auth != DASHBOARD_PASSWORD:
+    auth = request.cookies.get("auth", "")
+    if not hmac.compare_digest(auth, SESSION_TOKEN):
         raise HTTPException(status_code=403, detail="Access denied")
     
     # Input validation
@@ -326,8 +338,8 @@ async def submit_application(
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
     """Private dashboard — shows all applications with visit data and analytics."""
-    auth = request.cookies.get("auth")
-    if auth != DASHBOARD_PASSWORD:
+    auth = request.cookies.get("auth", "")
+    if not hmac.compare_digest(auth, SESSION_TOKEN):
         return templates.TemplateResponse("admin_login.html", {
             "request": request,
             "redirect_to": "/dashboard"
@@ -466,8 +478,8 @@ async def update_outcome(
     outcome: str = Form(...)
 ):
     """Update application outcome from the dashboard."""
-    auth = request.cookies.get("auth")
-    if auth != DASHBOARD_PASSWORD:
+    auth = request.cookies.get("auth", "")
+    if not hmac.compare_digest(auth, SESSION_TOKEN):
         raise HTTPException(status_code=403, detail="Access denied")
     
     valid_outcomes = ['pending', 'got_call', 'rejected', 'no_response']
