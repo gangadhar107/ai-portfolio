@@ -6,6 +6,7 @@ Includes rate limiting and input validation.
 
 import os
 import re
+import json
 import html
 import hmac
 import hashlib
@@ -363,118 +364,38 @@ async def dashboard_page(request: Request):
                 a.date_applied,
                 a.outcome,
                 a.ref_code,
-                a.notes,
                 COUNT(v.id) AS visit_count,
-                MIN(v.timestamp) AS first_visit,
-                MAX(v.timestamp) AS last_visit
+                MIN(v.timestamp) AS first_visit
             FROM applications a
             LEFT JOIN visits v ON a.ref_code = v.ref_code
             GROUP BY a.id
             ORDER BY a.date_applied DESC
         """)
         applications = cur.fetchall()
-        
-        # ── Stat Cards ──
-        cur.execute("SELECT COUNT(*) AS cnt FROM applications")
-        total_apps = cur.fetchone()["cnt"]
-        
-        cur.execute("""
-            SELECT COUNT(DISTINCT a.id) AS cnt 
-            FROM applications a 
-            INNER JOIN visits v ON a.ref_code = v.ref_code
-        """)
-        viewed_count = cur.fetchone()["cnt"]
-        
-        cur.execute("SELECT COUNT(*) AS cnt FROM applications WHERE outcome = 'got_call'")
-        calls_count = cur.fetchone()["cnt"]
-        
-        conversion_rate = round(calls_count / total_apps * 100, 1) if total_apps > 0 else 0
-        view_rate = round(viewed_count / total_apps * 100, 1) if total_apps > 0 else 0
-        
-        # ── Weekly Trend (for chart) ──
-        cur.execute("""
-            SELECT 
-                DATE_TRUNC('week', v.timestamp)::date AS week_start,
-                COUNT(*) AS total_views,
-                COUNT(DISTINCT v.ref_code) AS unique_refs
-            FROM visits v
-            GROUP BY DATE_TRUNC('week', v.timestamp)
-            ORDER BY week_start ASC
-        """)
-        weekly_data = cur.fetchall()
-        
-        # ── Conversion by Position (for chart) ──
-        cur.execute("""
-            SELECT 
-                a.position,
-                COUNT(*) AS total,
-                COUNT(CASE WHEN v.ref_code IS NOT NULL THEN 1 END) AS viewed,
-                COUNT(CASE WHEN a.outcome = 'got_call' THEN 1 END) AS got_call
-            FROM applications a
-            LEFT JOIN (SELECT DISTINCT ref_code FROM visits) v ON a.ref_code = v.ref_code
-            GROUP BY a.position
-            ORDER BY total DESC
-            LIMIT 8
-        """)
-        position_data = cur.fetchall()
-        
-        # ── Avg Time to View ──
-        cur.execute("""
-            SELECT ROUND(AVG(sub.days_to_view), 1) AS avg_days
-            FROM (
-                SELECT 
-                    EXTRACT(DAY FROM MIN(v.timestamp) - a.date_applied::timestamp) AS days_to_view
-                FROM applications a
-                INNER JOIN visits v ON a.ref_code = v.ref_code
-                GROUP BY a.id
-            ) sub
-        """)
-        avg_days_row = cur.fetchone()
-        avg_days_to_view = float(avg_days_row["avg_days"]) if avg_days_row and avg_days_row["avg_days"] else 0
-        
-        # ── High Intent (viewed > 1 time) ──
-        cur.execute("""
-            SELECT COUNT(*) AS cnt
-            FROM (
-                SELECT a.id
-                FROM applications a
-                INNER JOIN visits v ON a.ref_code = v.ref_code
-                GROUP BY a.id
-                HAVING COUNT(v.id) > 1
-            ) sub
-        """)
-        high_intent_count = cur.fetchone()["cnt"]
     
-    # Prepare chart data as JSON-safe
-    import json
-    weekly_labels = [str(row["week_start"]) for row in weekly_data]
-    weekly_views = [row["total_views"] for row in weekly_data]
-    weekly_unique = [row["unique_refs"] for row in weekly_data]
-    
-    position_labels = [row["position"] for row in position_data]
-    position_applied = [row["total"] for row in position_data]
-    position_viewed = [row["viewed"] for row in position_data]
-    position_calls = [row["got_call"] for row in position_data]
+    # Build the complete dataset as JSON for client-side filtering
+    all_applications = []
+    for app in applications:
+        first_viewed = None
+        if app["first_visit"]:
+            first_viewed = app["first_visit"].strftime("%Y-%m-%d %H:%M")
+        
+        all_applications.append({
+            "id": app["id"],
+            "company_name": app["company_name"],
+            "person_name": app["person_name"] or "",
+            "position": app["position"],
+            "date_applied": app["date_applied"].strftime("%Y-%m-%d") if app["date_applied"] else "",
+            "outcome": app["outcome"],
+            "ref_code": app["ref_code"] or "",
+            "views": app["visit_count"],
+            "first_viewed": first_viewed,
+            "viewed": app["visit_count"] > 0,
+        })
     
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
-        "applications": applications,
-        # Stat cards
-        "total_apps": total_apps,
-        "viewed_count": viewed_count,
-        "calls_count": calls_count,
-        "conversion_rate": conversion_rate,
-        "view_rate": view_rate,
-        "avg_days_to_view": avg_days_to_view,
-        "high_intent_count": high_intent_count,
-        # Chart data (JSON strings)
-        "weekly_labels": json.dumps(weekly_labels),
-        "weekly_views": json.dumps(weekly_views),
-        "weekly_unique": json.dumps(weekly_unique),
-        "position_labels": json.dumps(position_labels),
-        "position_applied": json.dumps(position_applied),
-        "position_viewed": json.dumps(position_viewed),
-        "position_calls": json.dumps(position_calls),
+        "json_data": json.dumps(all_applications),
     })
 
 
