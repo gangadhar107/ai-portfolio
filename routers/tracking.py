@@ -74,8 +74,15 @@ DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "changeme")
 # ─── Session Token (replaces storing plaintext password in cookie) ───
 # HMAC-sign the password so the cookie never contains the actual password.
 # Same password always produces the same token, so sessions survive restarts.
+SESSION_SECRET_KEY = os.getenv("SESSION_SECRET_KEY", "")
+if not SESSION_SECRET_KEY:
+    raise RuntimeError(
+        "SESSION_SECRET_KEY is not set. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\" "
+        "and add it to your .env file."
+    )
 SESSION_TOKEN = hmac.new(
-    key=b"portfolio-session-key",
+    key=SESSION_SECRET_KEY.encode(),
     msg=DASHBOARD_PASSWORD.encode(),
     digestmod=hashlib.sha256
 ).hexdigest()
