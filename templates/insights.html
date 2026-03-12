@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Portfolio Intelligence — AI Insights{% endblock %}
+{% block meta_description %}AI-powered portfolio intelligence and job-search insights{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ── Insights page tokens (extend base dark palette) ── */
+    :root {
+        --ins-bg: #0f0f0f;
+        --ins-card: #1a1a1a;
+        --ins-border: #2a2a2a;
+        --ins-text: #f5f0e8;
+        --ins-muted: #888;
+        --ins-accent: #e8d44d;
+        --ins-mono: 'JetBrains Mono', monospace;
+    }
+
+    .insights-shell {
+        max-width: 960px;
+        margin: 2rem auto;
+        padding: 0 2rem;
+    }
+
+    /* ── Page header ── */
+    .insights-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .insights-header h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--ins-text);
+    }
+    .insights-header-right {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .insights-timestamp {
+        font-size: 0.75rem;
+        color: var(--ins-muted);
+        font-family: var(--ins-mono);
+    }
+    .refresh-btn {
+        background: var(--ins-accent);
+        color: #0f0f0f;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1.1rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        font-family: 'Inter', sans-serif;
+        cursor: pointer;
+        transition: background 0.15s ease, transform 0.1s ease;
+    }
+    .refresh-btn:hover   { background: #f0e060; }
+    .refresh-btn:active  { transform: scale(0.97); }
+    .refresh-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* ── Card grid ── */
+    .insight-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    /* ── Individual card ── */
+    .ins-card {
+        background: var(--ins-card);
+        border: 1px solid var(--ins-border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        position: relative;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(12px);
+        animation: insCardIn 0.4s ease forwards;
+    }
+    /* Stagger animation */
+    .ins-card:nth-child(1) { animation-delay: 0.05s; }
+    .ins-card:nth-child(2) { animation-delay: 0.12s; }
+    .ins-card:nth-child(3) { animation-delay: 0.19s; }
+    .ins-card:nth-child(4) { animation-delay: 0.26s; }
+    .ins-card:nth-child(5) { animation-delay: 0.33s; }
+    .ins-card:nth-child(6) { animation-delay: 0.40s; }
+
+    @keyframes insCardIn {
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Left accent bar per type */
+    .ins-card::before {
+        content: '';
+        position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 4px;
+        border-radius: 12px 0 0 12px;
+    }
+    .ins-card[data-type="conversion"]::before { background: #4ade80; }
+    .ins-card[data-type="outreach"]::before   { background: #60a5fa; }
+    .ins-card[data-type="timing"]::before     { background: #e8d44d; }
+    .ins-card[data-type="pattern"]::before    { background: #a78bfa; }
+    .ins-card[data-type="warning"]::before    { background: #f87171; }
+
+    /* Badge */
+    .ins-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding: 3px 8px;
+        border-radius: 4px;
+        margin-bottom: 0.75rem;
+    }
+    .ins-badge[data-type="conversion"] { background: rgba(74,222,128,0.12); color: #4ade80; }
+    .ins-badge[data-type="outreach"]   { background: rgba(96,165,250,0.12); color: #60a5fa; }
+    .ins-badge[data-type="timing"]     { background: rgba(232,212,77,0.12); color: #e8d44d; }
+    .ins-badge[data-type="pattern"]    { background: rgba(167,139,250,0.12); color: #a78bfa; }
+    .ins-badge[data-type="warning"]    { background: rgba(248,113,113,0.12); color: #f87171; }
+
+    .ins-headline {
+        font-size: 1.05rem;
+        font-weight: 600;
+        color: var(--ins-text);
+        margin-bottom: 0.35rem;
+        line-height: 1.35;
+    }
+    .ins-explanation {
+        font-size: 0.85rem;
+        color: #aaa;
+        line-height: 1.55;
+        margin-bottom: 0.6rem;
+    }
+    .ins-action {
+        font-size: 0.8rem;
+        color: var(--ins-accent);
+        font-weight: 500;
+    }
+    .ins-action::before {
+        content: '→ ';
+    }
+
+    /* ── Empty state ── */
+    .ins-empty {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--ins-muted);
+        font-size: 0.9rem;
+    }
+
+    /* ── Back link ── */
+    .insights-back {
+        display: inline-block;
+        margin-top: 2rem;
+        font-size: 0.8rem;
+        color: var(--ins-muted);
+        text-decoration: none;
+        transition: color 0.15s ease;
+    }
+    .insights-back:hover { color: var(--ins-accent); }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+        .insights-shell { padding: 0 1rem; }
+        .insights-header h1 { font-size: 1.35rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="insights-shell">
+
+    <!-- Header -->
+    <div class="insights-header">
+        <h1>Portfolio Intelligence</h1>
+        <div class="insights-header-right">
+            {% if generated_at %}
+            <span class="insights-timestamp" id="insightsTimestamp">
+                Generated {{ generated_at.strftime('%b %d, %H:%M') }}
+            </span>
+            {% endif %}
+            <form action="/insights/refresh" method="post" id="refreshForm">
+                <button type="submit" class="refresh-btn" id="refreshBtn">
+                    Refresh Insights
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Insight cards -->
+    {% if insights and insights | length > 0 %}
+    <div class="insight-grid">
+        {% for item in insights %}
+        <article class="ins-card" data-type="{{ item.type }}">
+            <span class="ins-badge" data-type="{{ item.type }}">{{ item.type }}</span>
+            <h2 class="ins-headline">{{ item.headline }}</h2>
+            <p class="ins-explanation">{{ item.explanation }}</p>
+            {% if item.action %}
+            <span class="ins-action">{{ item.action }}</span>
+            {% endif %}
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="ins-empty">
+        <p>No insights generated yet. Click <strong>Refresh Insights</strong> to run AI analysis.</p>
+    </div>
+    {% endif %}
+
+    <a href="/dashboard" class="insights-back">← Back to Dashboard</a>
+
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    /* Disable button on click to prevent double-submit */
+    const form = document.getElementById('refreshForm');
+    if (form) {
+        form.addEventListener('submit', function () {
+            const btn = document.getElementById('refreshBtn');
+            btn.disabled = true;
+            btn.textContent = 'Generating…';
+        });
+    }
+</script>
+{% endblock %}

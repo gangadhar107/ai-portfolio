@@ -393,9 +393,20 @@ async def dashboard_page(request: Request):
             "viewed": app["visit_count"] > 0,
         })
     
+    # ── AI Insights ──
+    from routers.intelligence import get_cached_insights, generate_insights, collect_portfolio_data
+    insights = get_cached_insights()
+    if insights is None:
+        try:
+            data = collect_portfolio_data()
+            insights = generate_insights(data)
+        except Exception:
+            insights = []
+    
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "json_data": json.dumps(all_applications),
+        "insights_json": json.dumps(insights),
     })
 
 

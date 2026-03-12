@@ -19,3 +19,6 @@ python-multipart>=0.0.6
 
 # Static files
 aiofiles==24.1.0
+
+# AI Insights (v1.1 — Portfolio Intelligence)
+groq>=0.11.0
