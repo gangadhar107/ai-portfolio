@@ -584,12 +584,13 @@ async def submit_application(
             "success": False,
             "error": e.detail
         })
-    except Exception:
+    except Exception as e:
+        print(f"[Admin] Failed to save application: {type(e).__name__}: {e}")
         return templates.TemplateResponse("admin.html", {
             "request": request,
             "authenticated": True,
             "success": False,
-            "error": "Failed to save application"
+            "error": f"{type(e).__name__}: {str(e)[:200]}"
         })
 
 
