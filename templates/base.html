@@ -18,6 +18,15 @@
     <!-- Styles -->
     <link rel="stylesheet" href="/static/css/style.css">
     {% block extra_css %}{% endblock %}
+    {% if GA4_MEASUREMENT_ID %}
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ GA4_MEASUREMENT_ID }}"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', '{{ GA4_MEASUREMENT_ID }}');
+    </script>
+    {% endif %}
 </head>
 
 <body>
@@ -73,6 +82,77 @@
             links.classList.toggle('open');
             toggle.classList.toggle('open');
         });
+    </script>
+    <script>
+        (function () {
+            const token = "{{ visit_token | default('', true) }}";
+            if (!token) return;
+            let totalVisibleMs = 0;
+            let visibleSince = Date.now();
+            let intervalId = null;
+            let finished = false;
+
+            const visibleElapsedMs = () => {
+                if (document.visibilityState === "visible") {
+                    return totalVisibleMs + (Date.now() - visibleSince);
+                }
+                return totalVisibleMs;
+            };
+
+            const send = () => {
+                if (finished) return;
+                const elapsedSeconds = Math.max(0, Math.round(visibleElapsedMs() / 1000));
+                const payload = { visit_token: token, elapsed_seconds: elapsedSeconds };
+                try {
+                    if (navigator.sendBeacon) {
+                        const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+                        navigator.sendBeacon("/track-time", blob);
+                        return;
+                    }
+                } catch (e) { }
+                fetch("/track-time", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                    keepalive: true
+                }).catch(() => { });
+            };
+
+            const startInterval = () => {
+                if (intervalId) return;
+                intervalId = window.setInterval(send, 15000);
+            };
+
+            const stopInterval = () => {
+                if (!intervalId) return;
+                window.clearInterval(intervalId);
+                intervalId = null;
+            };
+
+            if (document.visibilityState === "visible") {
+                startInterval();
+            }
+
+            document.addEventListener("visibilitychange", function () {
+                if (document.visibilityState === "hidden") {
+                    totalVisibleMs += Date.now() - visibleSince;
+                    send();
+                    stopInterval();
+                    return;
+                }
+                visibleSince = Date.now();
+                startInterval();
+            });
+
+            window.addEventListener("pagehide", function () {
+                if (document.visibilityState === "visible") {
+                    totalVisibleMs += Date.now() - visibleSince;
+                }
+                send();
+                finished = true;
+                stopInterval();
+            });
+        })();
     </script>
     {% block extra_js %}{% endblock %}
 </body>

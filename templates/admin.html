@@ -88,6 +88,7 @@
         }
 
         .form-group input,
+        .form-group select,
         .form-group textarea {
             width: 100%;
             padding: 0.7rem 0.9rem;
@@ -102,6 +103,7 @@
         }
 
         .form-group input:focus,
+        .form-group select:focus,
         .form-group textarea:focus {
             border-color: #e8d44d;
         }
@@ -199,6 +201,55 @@
             background: rgba(232, 212, 77, 0.1);
         }
 
+        .error-card {
+            background: #1a1a1a;
+            border: 1.5px solid rgba(255, 107, 107, 0.6);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 0 rgba(255, 107, 107, 0.25);
+        }
+
+        .error-card h3 {
+            color: #ff6b6b;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .error-card p {
+            color: #cccccc;
+            font-size: 0.9rem;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.65rem 0.9rem;
+            background: #0f0f0f;
+            border: 1.5px solid #333;
+            border-radius: 8px;
+        }
+
+        .checkbox-row input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+
+        .checkbox-row label {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #f5f0e8;
+        }
+
+        .follow-up-fields {
+            display: none;
+        }
+
+        .follow-up-fields.show {
+            display: block;
+        }
+
         @media (max-width: 480px) {
             .form-row {
                 grid-template-columns: 1fr;
@@ -240,6 +291,13 @@
         </div>
         {% endif %}
 
+        {% if error %}
+        <div class="error-card">
+            <h3>⚠️ Could not save application</h3>
+            <p>{{ error }}</p>
+        </div>
+        {% endif %}
+
         <div class="form-card">
             <h2>New Job Application</h2>
             <form method="POST" action="/admin/application">
@@ -263,6 +321,68 @@
                         <input type="date" name="date_applied">
                     </div>
                 </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Outreach Channel</label>
+                        <select name="outreach_channel">
+                            <option value="">Select…</option>
+                            <option value="cold_founder_email">Cold founder email</option>
+                            <option value="hr_email">HR email</option>
+                            <option value="linkedin_dm">LinkedIn DM</option>
+                            <option value="portal_apply">Portal application</option>
+                            <option value="referral">Referral</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Type</label>
+                        <select name="contact_person">
+                            <option value="">Select…</option>
+                            <option value="founder">Founder</option>
+                            <option value="hr">HR</option>
+                            <option value="hiring_manager">Hiring manager</option>
+                            <option value="unknown">Unknown</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Role Category</label>
+                        <select name="role_category">
+                            <option value="">Select…</option>
+                            <option value="data_analyst">Data Analyst</option>
+                            <option value="apm">APM</option>
+                            <option value="founders_office">Founders Office</option>
+                            <option value="ai_engineer">AI Engineer</option>
+                            <option value="business_analyst">Business Analyst</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Followed up</label>
+                        <div class="checkbox-row">
+                            <input type="checkbox" id="followedUp" name="followed_up" value="true">
+                            <label for="followedUp">Yes</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="follow-up-fields" id="followUpFields">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Follow-up date</label>
+                            <input type="date" name="follow_up_date">
+                        </div>
+                        <div class="form-group">
+                            <label>Follow-up response</label>
+                            <select name="follow_up_response">
+                                <option value="">Select…</option>
+                                <option value="no_response">No response</option>
+                                <option value="positive">Positive</option>
+                                <option value="negative">Negative</option>
+                                <option value="interview_scheduled">Interview scheduled</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
                 <div class="form-group">
                     <label>Notes</label>
                     <textarea name="notes" placeholder="Any notes about this application..."></textarea>
@@ -271,6 +391,18 @@
             </form>
         </div>
     </div>
+    <script>
+        const followedUp = document.getElementById("followedUp");
+        const followUpFields = document.getElementById("followUpFields");
+        const syncFollowUpUI = () => {
+            if (!followedUp || !followUpFields) return;
+            followUpFields.classList.toggle("show", !!followedUp.checked);
+        };
+        if (followedUp) {
+            followedUp.addEventListener("change", syncFollowUpUI);
+            syncFollowUpUI();
+        }
+    </script>
 </body>
 
 </html>

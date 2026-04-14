@@ -2,11 +2,7 @@
 -- Phase 1: Three core tables for the ref code tracking system
 
 -- Create ENUM type for application outcomes
-DO $$ BEGIN
-    CREATE TYPE application_outcome AS ENUM ('pending', 'got_call', 'rejected', 'no_response');
-EXCEPTION
-    WHEN duplicate_object THEN null;
-END $$;
+CREATE TYPE IF NOT EXISTS application_outcome AS ENUM ('pending', 'got_call', 'rejected', 'no_response');
 
 -- Table 1: applications — stores every job application you submit
 CREATE TABLE IF NOT EXISTS applications (
@@ -18,6 +14,14 @@ CREATE TABLE IF NOT EXISTS applications (
     outcome         application_outcome DEFAULT 'pending',
     ref_code        TEXT UNIQUE,
     notes           TEXT,
+    outreach_channel   TEXT,
+    contact_person     TEXT,
+    role_category      TEXT,
+    followed_up        BOOLEAN DEFAULT FALSE,
+    follow_up_date     DATE,
+    follow_up_response TEXT,
+    outcome_date       DATE,
+    rejection_reason   TEXT,
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -28,7 +32,13 @@ CREATE TABLE IF NOT EXISTS visits (
     timestamp       TIMESTAMPTZ DEFAULT NOW(),
     visit_count     INTEGER DEFAULT 1,
     pages_visited   TEXT,
-    country         TEXT
+    country         TEXT,
+    visit_token     TEXT UNIQUE,
+    is_return_visit BOOLEAN DEFAULT FALSE,
+    visit_source    TEXT,
+    time_on_site    INTEGER,
+    utm_source      TEXT,
+    utm_medium      TEXT
 );
 
 -- Table 3: ref_codes — maps opaque codes to applications

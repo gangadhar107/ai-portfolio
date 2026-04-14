@@ -97,7 +97,10 @@ def collect_portfolio_data() -> dict:
             # All applications
             cur.execute("""
                 SELECT id, company_name, person_name, position,
-                       date_applied, outcome, ref_code, notes, created_at
+                       date_applied, outcome, outcome_date, ref_code, notes,
+                       outreach_channel, contact_person, role_category,
+                       followed_up, follow_up_date, follow_up_response,
+                       rejection_reason, created_at
                 FROM applications
                 ORDER BY date_applied DESC
             """)
@@ -110,13 +113,22 @@ def collect_portfolio_data() -> dict:
                     "position": row["position"],
                     "date_applied": row["date_applied"].strftime("%Y-%m-%d") if row["date_applied"] else "",
                     "outcome": row["outcome"] or "pending",
+                    "outcome_date": row["outcome_date"].strftime("%Y-%m-%d") if row.get("outcome_date") else "",
                     "ref_code": row["ref_code"] or "",
                     "notes": row["notes"] or "",
+                    "outreach_channel": row.get("outreach_channel") or "",
+                    "contact_person": row.get("contact_person") or "",
+                    "role_category": row.get("role_category") or "",
+                    "followed_up": bool(row.get("followed_up")) if row.get("followed_up") is not None else False,
+                    "follow_up_date": row["follow_up_date"].strftime("%Y-%m-%d") if row.get("follow_up_date") else "",
+                    "follow_up_response": row.get("follow_up_response") or "",
+                    "rejection_reason": row.get("rejection_reason") or "",
                 })
 
             # All visits
             cur.execute("""
-                SELECT id, ref_code, timestamp, visit_count, country
+                SELECT id, ref_code, timestamp, visit_count, country,
+                       is_return_visit, visit_source, time_on_site, utm_source, utm_medium
                 FROM visits
                 ORDER BY timestamp DESC
             """)
@@ -128,6 +140,11 @@ def collect_portfolio_data() -> dict:
                     "timestamp": row["timestamp"].strftime("%Y-%m-%d %H:%M") if row["timestamp"] else "",
                     "visit_count": row["visit_count"],
                     "country": row["country"] or "",
+                    "is_return_visit": bool(row.get("is_return_visit")) if row.get("is_return_visit") is not None else False,
+                    "visit_source": row.get("visit_source") or "",
+                    "time_on_site": row.get("time_on_site") if row.get("time_on_site") is not None else None,
+                    "utm_source": row.get("utm_source") or "",
+                    "utm_medium": row.get("utm_medium") or "",
                 })
 
             # All ref codes
@@ -210,6 +227,9 @@ def generate_insights(data: dict) -> list:
         # Build user prompt with the actual data
         user_prompt = (
             "Analyse this job search portfolio data and return actionable insights.\n\n"
+            "Use the richer v1.2 context fields when present:\n"
+            "- applications: outreach_channel, role_category, followed_up, follow_up_response, outcome_date\n"
+            "- visits: is_return_visit, visit_source, time_on_site, utm_source, utm_medium\n\n"
             f"Applications ({len(data['applications'])} total):\n"
             f"{json.dumps(data['applications'], indent=2)}\n\n"
             f"Portfolio Visits ({len(data['visits'])} total):\n"
@@ -331,4 +351,3 @@ async def refresh_insights(request: Request):
     set_cached_insights(insights)
 
     return {"insights": insights}
-

@@ -13,36 +13,38 @@ import hashlib
 import secrets
 import string
 import smtplib
+import urllib.request as urlrequest
+import urllib.parse as urlparse
 from collections import defaultdict
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Request, Form, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 from database import get_cursor
 
 
 # ─── Rate Limiter (in-memory) ───
 # Key: (client_ip, ref_code) → last_logged_time
-# Max 1 visit log per IP per ref code per hour
-_rate_limit_store: dict[tuple, datetime] = {}
-RATE_LIMIT_WINDOW = timedelta(hours=1)
+# Deduplicate rapid reloads per IP per ref code
+_rate_limit_store: dict[tuple, list[datetime]] = {}
+RATE_LIMIT_WINDOW = timedelta(seconds=60)
+MAX_VISITS_PER_WINDOW = 5
 
 def _is_rate_limited(ip: str, ref_code: str) -> bool:
-    """Check if this IP+ref_code combo was logged within the last hour."""
+    """Check if this IP+ref_code combo was logged very recently."""
     key = (ip, ref_code)
     now = datetime.now()
-    
-    # Cleanup old entries (prevent memory leak)
-    expired = [k for k, v in _rate_limit_store.items() if now - v > RATE_LIMIT_WINDOW]
-    for k in expired:
-        del _rate_limit_store[k]
-    
-    if key in _rate_limit_store:
-        if now - _rate_limit_store[key] < RATE_LIMIT_WINDOW:
-            return True  # Rate limited
-    
-    _rate_limit_store[key] = now
+
+    window_start = now - RATE_LIMIT_WINDOW
+    times = _rate_limit_store.get(key, [])
+    times = [t for t in times if t >= window_start]
+    if len(times) >= MAX_VISITS_PER_WINDOW:
+        _rate_limit_store[key] = times
+        return True
+    times.append(now)
+    _rate_limit_store[key] = times
     return False
 
 
@@ -66,6 +68,12 @@ def _validate_application_input(company: str, position: str):
         raise HTTPException(status_code=400, detail="Company name too long (max 200 chars)")
     if len(position) > 200:
         raise HTTPException(status_code=400, detail="Position too long (max 200 chars)")
+
+V12_OUTREACH_CHANNELS = {"cold_founder_email", "hr_email", "linkedin_dm", "portal_apply", "referral"}
+V12_CONTACT_PERSONS = {"founder", "hr", "hiring_manager", "unknown"}
+V12_ROLE_CATEGORIES = {"data_analyst", "apm", "founders_office", "ai_engineer", "business_analyst", "other"}
+V12_FOLLOW_UP_RESPONSES = {"no_response", "positive", "negative", "interview_scheduled"}
+VISIT_SOURCES = {"email_click", "direct", "linkedin", "unknown"}
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -91,6 +99,81 @@ SESSION_TOKEN = hmac.new(
 BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8000")
 NOTIFICATION_EMAIL = os.getenv("NOTIFICATION_EMAIL", "")
 NOTIFICATION_EMAIL_PASSWORD = os.getenv("NOTIFICATION_EMAIL_PASSWORD", "")
+
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+def _is_internal_visit(request: Request) -> bool:
+    excluded = [ip.strip() for ip in os.getenv("EXCLUDED_IPS", "").split(",") if ip.strip()]
+    if request.cookies.get("portfolio_owner") == "true":
+        return True
+    ip = get_client_ip(request)
+    return ip in excluded
+
+def _parse_ga_client_id(request: Request) -> str | None:
+    ga_cookie = request.cookies.get("_ga")
+    if not ga_cookie:
+        return None
+    parts = [p for p in ga_cookie.split(".") if p]
+    if len(parts) < 4:
+        return None
+    return f"{parts[-2]}.{parts[-1]}"
+
+def _fire_ga4_recruiter_visit_event(
+    *,
+    request: Request,
+    ref_code: str,
+    company_name: str,
+    position: str,
+    is_return_visit: bool,
+    visit_source: str,
+    utm_source: str | None,
+    utm_medium: str | None,
+):
+    measurement_id = os.getenv("GA4_MEASUREMENT_ID", "").strip()
+    api_secret = os.getenv("GA4_API_SECRET", "").strip()
+    if not measurement_id or not api_secret:
+        print("[GA4] GA4_MEASUREMENT_ID/GA4_API_SECRET not set — skipping server event")
+        return
+
+    client_id = _parse_ga_client_id(request)
+    if not client_id:
+        print("[GA4] _ga cookie missing/unparseable — skipping server event")
+        return
+
+    endpoint = f"https://www.google-analytics.com/mp/collect?{urlparse.urlencode({'measurement_id': measurement_id, 'api_secret': api_secret})}"
+    payload = {
+        "client_id": client_id,
+        "events": [{
+            "name": "recruiter_visit",
+            "params": {
+                "ref_code": ref_code,
+                "company": company_name,
+                "position": position,
+                "is_return_visit": is_return_visit,
+                "visit_source": visit_source,
+                "utm_source": utm_source or "",
+                "utm_medium": utm_medium or "",
+            }
+        }]
+    }
+
+    try:
+        data = json.dumps(payload).encode("utf-8")
+        req = urlrequest.Request(
+            endpoint,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urlrequest.urlopen(req, timeout=2) as resp:
+            if resp.status >= 400:
+                print(f"[GA4] Event failed: HTTP {resp.status}")
+    except Exception as e:
+        print(f"[GA4] Event error: {e}")
 
 
 # ─── Auth Middleware ───
@@ -121,7 +204,14 @@ def generate_ref_code() -> str:
 
 
 def save_application(company_name: str, position: str, person_name: str = None, 
-                     notes: str = None, date_applied: str = None) -> dict:
+                     notes: str = None, date_applied: str = None,
+                     outreach_channel: str | None = None,
+                     contact_person: str | None = None,
+                     role_category: str | None = None,
+                     followed_up: bool = False,
+                     follow_up_date: str | None = None,
+                     follow_up_response: str | None = None,
+                     rejection_reason: str | None = None) -> dict:
     """
     Save a new job application and generate its ref code.
     Inserts into both applications and ref_codes tables in sequence.
@@ -129,14 +219,34 @@ def save_application(company_name: str, position: str, person_name: str = None,
     """
     ref_code = generate_ref_code()
     applied_date = date_applied or datetime.now().strftime('%Y-%m-%d')
+
+    if outreach_channel and outreach_channel not in V12_OUTREACH_CHANNELS:
+        raise HTTPException(status_code=400, detail="Invalid outreach_channel value")
+    if contact_person and contact_person not in V12_CONTACT_PERSONS:
+        raise HTTPException(status_code=400, detail="Invalid contact_person value")
+    if role_category and role_category not in V12_ROLE_CATEGORIES:
+        raise HTTPException(status_code=400, detail="Invalid role_category value")
+    if follow_up_response and follow_up_response not in V12_FOLLOW_UP_RESPONSES:
+        raise HTTPException(status_code=400, detail="Invalid follow_up_response value")
+    if follow_up_date and not re.match(r"^\d{4}-\d{2}-\d{2}$", follow_up_date):
+        raise HTTPException(status_code=400, detail="Invalid follow_up_date format (YYYY-MM-DD)")
     
     with get_cursor() as cur:
         # Insert application
         cur.execute(
-            """INSERT INTO applications (company_name, person_name, position, date_applied, ref_code, notes)
-               VALUES (%s, %s, %s, %s, %s, %s)
+            """INSERT INTO applications (
+                    company_name, person_name, position, date_applied, ref_code, notes,
+                    outreach_channel, contact_person, role_category,
+                    followed_up, follow_up_date, follow_up_response, rejection_reason
+               )
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                RETURNING id""",
-            (company_name, person_name or None, position, applied_date, ref_code, notes or None)
+            (
+                company_name, person_name or None, position, applied_date, ref_code, notes or None,
+                outreach_channel or None, contact_person or None, role_category or None,
+                bool(followed_up), follow_up_date or None, follow_up_response or None,
+                rejection_reason or None
+            )
         )
         app_id = cur.fetchone()["id"]
         
@@ -146,6 +256,12 @@ def save_application(company_name: str, position: str, person_name: str = None,
                VALUES (%s, %s, TRUE)""",
             (ref_code, app_id)
         )
+
+    try:
+        from routers.intelligence import clear_insights_cache
+        clear_insights_cache()
+    except Exception:
+        pass
     
     ref_link = f"{BASE_URL}/?ref={ref_code}"
     return {
@@ -157,54 +273,156 @@ def save_application(company_name: str, position: str, person_name: str = None,
     }
 
 
-def log_visit(ref_code: str, request: Request = None) -> bool:
+def _derive_visit_source(request: Request, utm_source: str | None, utm_medium: str | None) -> str:
+    if utm_medium:
+        m = utm_medium.strip().lower()
+        if "email" in m:
+            return "email_click"
+    if utm_source:
+        s = utm_source.strip().lower()
+        if s == "linkedin":
+            return "linkedin"
+
+    referer = request.headers.get("referer") if request else None
+    if referer and "linkedin.com" in referer.lower():
+        return "linkedin"
+    if not referer:
+        return "direct"
+    return "unknown"
+
+
+def log_visit(ref_code: str, request: Request = None) -> str | None:
     """
     Log a portfolio visit for a given ref code.
     Silently ignores invalid/non-existent ref codes — no errors, no fake rows.
-    Returns True if visit was logged, False if ref code was invalid.
+    Returns a per-visit token if a row was inserted, else None.
     """
-    # First verify the ref code exists and is active
-    with get_cursor() as cur:
-        cur.execute(
-            "SELECT id, is_active FROM ref_codes WHERE ref_code = %s",
-            (ref_code,)
-        )
-        ref_record = cur.fetchone()
-        
-        if ref_record is None or not ref_record["is_active"]:
-            # Silently ignore — no 500 error, no fake visit row
-            return False
-        
-        # Rate limit check: 1 log per IP per ref code per hour
-        client_ip = "unknown"
-        if request:
-            client_ip = request.client.host if request.client else "unknown"
-        
-        if _is_rate_limited(client_ip, ref_code):
-            return False  # Silently skip — already logged recently
-        
-        # Count existing visits for this ref code
-        cur.execute(
-            "SELECT COUNT(*) as cnt FROM visits WHERE ref_code = %s",
-            (ref_code,)
-        )
-        visit_count = cur.fetchone()["cnt"] + 1
-        
-        # Get country from request if available (basic)
-        country = None
-        
-        # Insert visit
-        cur.execute(
-            """INSERT INTO visits (ref_code, visit_count, country)
-               VALUES (%s, %s, %s)""",
-            (ref_code, visit_count, country)
-        )
-        
-        # Send email notification on FIRST visit only
-        if visit_count == 1:
-            _send_first_visit_notification(ref_code)
-    
-    return True
+    if not request:
+        return None
+    if _is_internal_visit(request):
+        return None
+
+    try:
+        with get_cursor() as cur:
+            cur.execute(
+                "SELECT id, is_active FROM ref_codes WHERE ref_code = %s",
+                (ref_code,)
+            )
+            ref_record = cur.fetchone()
+
+            if ref_record is None or not ref_record["is_active"]:
+                return None
+
+            client_ip = get_client_ip(request)
+            if _is_rate_limited(client_ip, ref_code):
+                return None
+
+            utm_source = request.query_params.get("utm_source")
+            utm_medium = request.query_params.get("utm_medium")
+            if utm_source:
+                utm_source = _sanitize(utm_source, 100)
+            if utm_medium:
+                utm_medium = _sanitize(utm_medium, 100)
+
+            visit_source = _derive_visit_source(request, utm_source, utm_medium)
+            if visit_source not in VISIT_SOURCES:
+                visit_source = "unknown"
+
+            cur.execute(
+                "SELECT COUNT(*) as cnt FROM visits WHERE ref_code = %s",
+                (ref_code,)
+            )
+            cnt = cur.fetchone()["cnt"]
+            visit_count = cnt + 1
+            is_return_visit = cnt > 0
+
+            country = None
+            visit_token = secrets.token_urlsafe(16)
+
+            cur.execute(
+                """INSERT INTO visits (
+                        ref_code, visit_count, country,
+                        visit_token, is_return_visit, visit_source,
+                        utm_source, utm_medium
+                   )
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                (
+                    ref_code, visit_count, country,
+                    visit_token, is_return_visit, visit_source,
+                    utm_source or None, utm_medium or None
+                )
+            )
+
+            if visit_count == 1:
+                _send_first_visit_notification(ref_code)
+
+            try:
+                from routers.intelligence import clear_insights_cache
+                clear_insights_cache()
+            except Exception:
+                pass
+
+            cur.execute("""
+                SELECT a.company_name, a.position
+                FROM applications a
+                JOIN ref_codes rc ON rc.application_id = a.id
+                WHERE rc.ref_code = %s
+            """, (ref_code,))
+            app = cur.fetchone()
+
+        if app:
+            _fire_ga4_recruiter_visit_event(
+                request=request,
+                ref_code=ref_code,
+                company_name=app["company_name"],
+                position=app["position"],
+                is_return_visit=is_return_visit,
+                visit_source=visit_source,
+                utm_source=utm_source,
+                utm_medium=utm_medium,
+            )
+
+        return visit_token
+    except Exception as e:
+        print(f"[Tracking] log_visit error: {e}")
+        return None
+
+
+class TrackTimePayload(BaseModel):
+    visit_token: str
+    elapsed_seconds: int
+
+
+@router.post("/track-time")
+async def track_time(request: Request, payload: TrackTimePayload):
+    if _is_internal_visit(request):
+        return {"ok": True}
+
+    token = (payload.visit_token or "").strip()
+    if not token or len(token) > 200:
+        raise HTTPException(status_code=400, detail="Invalid visit_token")
+
+    seconds = int(payload.elapsed_seconds)
+    if seconds < 0 or seconds > 6 * 60 * 60:
+        raise HTTPException(status_code=400, detail="Invalid elapsed_seconds")
+
+    try:
+        with get_cursor() as cur:
+            cur.execute(
+                """
+                UPDATE visits
+                SET time_on_site = CASE
+                    WHEN time_on_site IS NULL THEN %s
+                    ELSE GREATEST(time_on_site, %s)
+                END
+                WHERE visit_token = %s
+                """,
+                (seconds, seconds, token)
+            )
+        return {"ok": True}
+    except Exception as e:
+        print(f"[Tracking] track_time error: {e}")
+        return {"ok": True}
 
 
 def _send_first_visit_notification(ref_code: str):
@@ -300,6 +518,7 @@ async def admin_login(
         })
     response = RedirectResponse(url=redirect_to, status_code=303)
     response.set_cookie("auth", SESSION_TOKEN, httponly=True, samesite="strict")
+    response.set_cookie("portfolio_owner", "true", httponly=True, samesite="strict")
     return response
 
 
@@ -316,7 +535,13 @@ async def submit_application(
     position: str = Form(...),
     person_name: str = Form(""),
     notes: str = Form(""),
-    date_applied: str = Form("")
+    date_applied: str = Form(""),
+    outreach_channel: str = Form(""),
+    contact_person: str = Form(""),
+    role_category: str = Form(""),
+    followed_up: str = Form(""),
+    follow_up_date: str = Form(""),
+    follow_up_response: str = Form("")
 ):
     """Save a new application and return the generated ref link."""
     auth = request.cookies.get("auth", "")
@@ -325,20 +550,47 @@ async def submit_application(
     
     # Input validation
     _validate_application_input(company_name, position)
-    
-    result = save_application(
-        _sanitize(company_name), 
-        _sanitize(position), 
-        _sanitize(person_name) if person_name else None, 
-        _sanitize(notes, 500) if notes else None, 
-        date_applied or None
-    )
-    return templates.TemplateResponse("admin.html", {
-        "request": request,
-        "authenticated": True,
-        "success": True,
-        "result": result
-    })
+
+    followed_up_bool = str(followed_up).lower() in {"true", "on", "1", "yes"}
+    if follow_up_date and not followed_up_bool:
+        follow_up_date = ""
+    if follow_up_response and not followed_up_bool:
+        follow_up_response = ""
+
+    try:
+        result = save_application(
+            _sanitize(company_name),
+            _sanitize(position),
+            _sanitize(person_name) if person_name else None,
+            _sanitize(notes, 500) if notes else None,
+            date_applied or None,
+            outreach_channel=outreach_channel or None,
+            contact_person=contact_person or None,
+            role_category=role_category or None,
+            followed_up=followed_up_bool,
+            follow_up_date=follow_up_date or None,
+            follow_up_response=follow_up_response or None,
+        )
+        return templates.TemplateResponse("admin.html", {
+            "request": request,
+            "authenticated": True,
+            "success": True,
+            "result": result
+        })
+    except HTTPException as e:
+        return templates.TemplateResponse("admin.html", {
+            "request": request,
+            "authenticated": True,
+            "success": False,
+            "error": e.detail
+        })
+    except Exception:
+        return templates.TemplateResponse("admin.html", {
+            "request": request,
+            "authenticated": True,
+            "success": False,
+            "error": "Failed to save application"
+        })
 
 
 # ─── Dashboard Routes ───
@@ -427,9 +679,20 @@ async def update_outcome(
     
     with get_cursor() as cur:
         cur.execute(
-            "UPDATE applications SET outcome = %s WHERE id = %s",
-            (outcome, application_id)
+            """
+            UPDATE applications
+            SET outcome = %s,
+                outcome_date = CASE WHEN %s = 'pending' THEN NULL ELSE CURRENT_DATE END
+            WHERE id = %s
+            """,
+            (outcome, outcome, application_id)
         )
+
+    try:
+        from routers.intelligence import clear_insights_cache
+        clear_insights_cache()
+    except Exception:
+        pass
     
     return RedirectResponse(url="/dashboard", status_code=303)
 
