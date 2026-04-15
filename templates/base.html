@@ -90,7 +90,7 @@
             let totalVisibleMs = 0;
             let visibleSince = Date.now();
             let intervalId = null;
-            let finished = false;
+            let pageLeft = false;
 
             const visibleElapsedMs = () => {
                 if (document.visibilityState === "visible") {
@@ -100,7 +100,7 @@
             };
 
             const send = () => {
-                if (finished) return;
+                if (pageLeft) return;
                 const elapsedSeconds = Math.max(0, Math.round(visibleElapsedMs() / 1000));
                 const payload = { visit_token: token, elapsed_seconds: elapsedSeconds };
                 try {
@@ -116,6 +116,19 @@
                     body: JSON.stringify(payload),
                     keepalive: true
                 }).catch(() => { });
+            };
+
+            const pauseTracking = () => {
+                if (document.visibilityState === "visible") {
+                    totalVisibleMs += Date.now() - visibleSince;
+                }
+                send();
+                stopInterval();
+            };
+
+            const resumeTracking = () => {
+                visibleSince = Date.now();
+                startInterval();
             };
 
             const startInterval = () => {
@@ -135,22 +148,17 @@
 
             document.addEventListener("visibilitychange", function () {
                 if (document.visibilityState === "hidden") {
-                    totalVisibleMs += Date.now() - visibleSince;
-                    send();
-                    stopInterval();
+                    // Flush progress when the tab is hidden, but keep the session open
+                    // so later returns can continue increasing time_on_site.
+                    pauseTracking();
                     return;
                 }
-                visibleSince = Date.now();
-                startInterval();
+                resumeTracking();
             });
 
             window.addEventListener("pagehide", function () {
-                if (document.visibilityState === "visible") {
-                    totalVisibleMs += Date.now() - visibleSince;
-                }
-                send();
-                finished = true;
-                stopInterval();
+                pauseTracking();
+                pageLeft = true;
             });
         })();
     </script>
