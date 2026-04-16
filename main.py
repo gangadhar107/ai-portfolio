@@ -68,7 +68,7 @@ async def projects(request: Request, ref: str = None):
     visit_token = None
     if ref:
         visit_token = log_visit(ref, request)
-    return templates.TemplateResponse("projects.html", {
+    return templates.TemplateResponse("projects_final.html", {
         "request": request,
         "active_page": "projects",
         "visit_token": visit_token
