@@ -634,7 +634,7 @@ async def dashboard_page(request: Request):
             first_viewed = app["first_visit"].strftime("%Y-%m-%d %H:%M")
         
         all_applications.append({
-            "id": app["id"],
+            "id": str(app["id"]),
             "company_name": app["company_name"],
             "person_name": app["person_name"] or "",
             "position": app["position"],
