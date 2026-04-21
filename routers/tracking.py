@@ -655,11 +655,14 @@ async def dashboard_page(request: Request):
             insights = generate_insights(data)
         except Exception:
             insights = []
+
+    error = request.query_params.get("error")
     
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "json_data": json.dumps(all_applications),
         "insights_json": json.dumps(insights),
+        "error": error,
     })
 
 
@@ -677,17 +680,32 @@ async def update_outcome(
     valid_outcomes = ['pending', 'got_call', 'rejected', 'no_response']
     if outcome not in valid_outcomes:
         raise HTTPException(status_code=400, detail=f"Invalid outcome. Must be one of: {valid_outcomes}")
-    
-    with get_cursor() as cur:
-        cur.execute(
-            """
-            UPDATE applications
-            SET outcome = %s,
-                outcome_date = CASE WHEN %s = 'pending' THEN NULL ELSE CURRENT_DATE END
-            WHERE id = %s
-            """,
-            (outcome, outcome, application_id)
-        )
+
+    try:
+        with get_cursor() as cur:
+            try:
+                cur.execute(
+                    """
+                    UPDATE applications
+                    SET outcome = %s,
+                        outcome_date = CASE WHEN %s = 'pending' THEN NULL ELSE CURRENT_DATE END
+                    WHERE id = %s
+                    """,
+                    (outcome, outcome, application_id)
+                )
+            except Exception as e:
+                msg = str(e)
+                if "outcome_date" in msg and ("does not exist" in msg or "undefined" in msg.lower()):
+                    cur.execute(
+                        "UPDATE applications SET outcome = %s WHERE id = %s",
+                        (outcome, application_id)
+                    )
+                else:
+                    raise
+    except Exception as e:
+        print(f"[Dashboard] Failed to update outcome: {type(e).__name__}: {e}")
+        safe_msg = f"{type(e).__name__}: {str(e)[:120]}"
+        return RedirectResponse(url=f"/dashboard?error={urlparse.quote(safe_msg)}", status_code=303)
 
     try:
         from routers.intelligence import clear_insights_cache
