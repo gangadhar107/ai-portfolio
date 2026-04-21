@@ -594,6 +594,12 @@
     </header>
 
     <div class="dash-container">
+        {% if error %}
+        <div style="background:#1a1a1a;border:1px solid rgba(255,107,107,0.6);border-radius:12px;padding:14px 16px;margin-bottom:16px;color:#f5f0e8;">
+            <div style="color:#ff6b6b;font-weight:700;margin-bottom:4px;">Could not update outcome</div>
+            <div style="color:#cccccc;font-size:13px;line-height:1.5;word-break:break-word;">{{ error }}</div>
+        </div>
+        {% endif %}
 
         <!-- Page-Level Filter Bar -->
         <div class="filter-bar" id="filterBar">
