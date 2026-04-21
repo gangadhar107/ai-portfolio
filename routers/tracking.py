@@ -690,16 +690,25 @@ async def update_outcome(
                     SET outcome = %s,
                         outcome_date = CASE WHEN %s = 'pending' THEN NULL ELSE CURRENT_DATE END
                     WHERE id = %s
+                    RETURNING id
                     """,
                     (outcome, outcome, application_id)
                 )
+                updated = cur.fetchone()
+                if not updated:
+                    safe_msg = f"Application not found: id={application_id}"
+                    return RedirectResponse(url=f"/dashboard?error={urlparse.quote(safe_msg)}", status_code=303)
             except Exception as e:
                 msg = str(e)
                 if "outcome_date" in msg and ("does not exist" in msg or "undefined" in msg.lower()):
                     cur.execute(
-                        "UPDATE applications SET outcome = %s WHERE id = %s",
+                        "UPDATE applications SET outcome = %s WHERE id = %s RETURNING id",
                         (outcome, application_id)
                     )
+                    updated = cur.fetchone()
+                    if not updated:
+                        safe_msg = f"Application not found: id={application_id}"
+                        return RedirectResponse(url=f"/dashboard?error={urlparse.quote(safe_msg)}", status_code=303)
                 else:
                     raise
     except Exception as e:
@@ -714,4 +723,3 @@ async def update_outcome(
         pass
     
     return RedirectResponse(url="/dashboard", status_code=303)
-
