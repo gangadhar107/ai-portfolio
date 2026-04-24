@@ -238,4 +238,55 @@
     </div>
 </div>
 
+<div class="project-card">
+    <h3 class="project-name">Facial Emotion Recognition System</h3>
+    <p class="project-tagline">Real-time emotion detection from live webcam feed using MobileNetV2 transfer learning on the FER2013 dataset.</p>
+
+    <div class="project-sections">
+        <div class="project-section">
+            <h4>Problem</h4>
+            <p>Human emotion is a critical signal in applications like mental health monitoring, customer experience
+                analysis, and human-computer interaction. Manual observation is not scalable and existing lightweight
+                models trained on the FER2013 dataset struggle with its inherent label noise, class imbalance, and low
+                image resolution, making reliable real-time emotion classification genuinely difficult.</p>
+        </div>
+        <div class="project-section">
+            <h4>Solution</h4>
+            <p>Upgraded a previous CNN-based system to a MobileNetV2 transfer learning architecture trained on FER2013
+                (36K images, 7 emotion classes). Implemented two-phase fine-tuning, first training only the
+                classification head with the base frozen, then unfreezing the top 30 layers for fine-tuning. Deployed
+                the model for real-time inference using OpenCV with Haar cascade face detection and per-class confidence
+                visualisation on live webcam feed.</p>
+        </div>
+        <div class="project-section">
+            <h4>Impact</h4>
+            <p>Achieved 49% test accuracy on FER2013, a dataset with a documented human-level ceiling of approximately
+                65% due to crowd-sourced label noise and severe class imbalance (disgust class is 16x underrepresented
+                relative to happiness). Model runs in real-time on CPU with confidence thresholding and uncertainty
+                flagging, making it practically deployable without GPU hardware.</p>
+        </div>
+        <div class="project-section">
+            <h4>My Role</h4>
+            <p>Owned the full pipeline independently including data preprocessing, augmentation strategy, two-phase
+                training with callbacks, evaluation via confusion matrix and classification report, and real-time
+                inference deployment. Diagnosed the Disgust and Fear class failures as dataset-level problems rather
+                than model failures, and identified concrete next steps including class weighting and label
+                smoothing.</p>
+        </div>
+    </div>
+
+    <div class="project-footer">
+        <div class="tags">
+            <span class="tag">Python</span>
+            <span class="tag">TensorFlow</span>
+            <span class="tag">MobileNetV2</span>
+            <span class="tag">Transfer Learning</span>
+            <span class="tag">OpenCV</span>
+            <span class="tag">Computer Vision</span>
+        </div>
+        <a href="https://github.com/gangadhar107/Facial-Emotion-Detector-using-OpenCV-and-Deep-Learning" target="_blank" rel="noopener" class="project-link">GitHub -></a>
+    </div>
+</div>
+
 {% endblock %}
+
