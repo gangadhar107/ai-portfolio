@@ -795,12 +795,13 @@ async def context_page(request: Request, application_id: int):
 
         latest = None
         if history:
+            app_status = (app.get("assessment_status") or "not_run").strip().lower()
             latest = {
                 "created_at": history[0].get("created_at"),
-                "status": app.get("assessment_status") or "not_run",
+                "status": app_status,
                 "failure_reason": history[0].get("failure_reason"),
-                "fit_confidence": history[0].get("fit_confidence"),
-                "confidence_score": history[0].get("confidence_score"),
+                "fit_confidence": history[0].get("fit_confidence") if app_status in {"completed", "weak_jd"} else None,
+                "confidence_score": history[0].get("confidence_score") if app_status in {"completed", "weak_jd"} else None,
             }
 
         app_view = dict(app)
@@ -865,16 +866,6 @@ async def assess_fit(request: Request, application_id: int = Form(...)):
         from groq import Groq
         api_key = os.getenv("GROQ_API_KEY", "").strip()
         if not api_key:
-            assessment = {
-                "failure_reason": "jd_extraction_invalid",
-                "matching_skills_json": "[]",
-                "missing_skills_json": "[]",
-                "jd_weights_json": "{}",
-                "rejected_terms_json": "[]",
-                "vocab_version": "v1",
-            }
-            insert_assessment(application_id, context["id"], assessment)
-            update_assessment_status(application_id, "failed")
             return RedirectResponse(url=f"/admin/context/{application_id}?error={urlparse.quote('GROQ_API_KEY not set')}", status_code=303)
 
         client = Groq(api_key=api_key)
@@ -1003,3 +994,49 @@ async def assess_fit(request: Request, application_id: int = Form(...)):
     except Exception as e:
         safe_msg = f"{type(e).__name__}: {str(e)[:160]}"
         return RedirectResponse(url=f"/admin/context/{application_id}?error={urlparse.quote(safe_msg)}", status_code=303)
+
+
+@router.post("/dashboard/update-follow-up")
+async def update_follow_up(
+    request: Request,
+    application_id: int = Form(...),
+    followed_up: str = Form("true")
+):
+    """Update follow-up status from the dashboard."""
+    auth = request.cookies.get("auth", "")
+    if not hmac.compare_digest(auth, SESSION_TOKEN):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    followed_up_bool = str(followed_up).lower() in {"true", "on", "1", "yes"}
+
+    try:
+        with get_cursor() as cur:
+            cur.execute(
+                """
+                UPDATE applications
+                SET followed_up = %s,
+                    follow_up_date = CASE
+                        WHEN %s THEN COALESCE(follow_up_date, CURRENT_DATE)
+                        ELSE NULL
+                    END
+                WHERE id = %s
+                RETURNING id
+                """,
+                (followed_up_bool, followed_up_bool, application_id)
+            )
+            updated = cur.fetchone()
+            if not updated:
+                safe_msg = f"Application not found: id={application_id}"
+                return RedirectResponse(url=f"/dashboard?error={urlparse.quote(safe_msg)}", status_code=303)
+    except Exception as e:
+        print(f"[Dashboard] Failed to update follow-up: {type(e).__name__}: {e}")
+        safe_msg = f"{type(e).__name__}: {str(e)[:120]}"
+        return RedirectResponse(url=f"/dashboard?error={urlparse.quote(safe_msg)}", status_code=303)
+
+    try:
+        from routers.intelligence import clear_insights_cache
+        clear_insights_cache()
+    except Exception:
+        pass
+
+    return RedirectResponse(url="/dashboard", status_code=303)

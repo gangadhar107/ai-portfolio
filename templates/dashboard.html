@@ -596,7 +596,7 @@
     <div class="dash-container">
         {% if error %}
         <div style="background:#1a1a1a;border:1px solid rgba(255,107,107,0.6);border-radius:12px;padding:14px 16px;margin-bottom:16px;color:#f5f0e8;">
-            <div style="color:#ff6b6b;font-weight:700;margin-bottom:4px;">Could not update outcome</div>
+            <div style="color:#ff6b6b;font-weight:700;margin-bottom:4px;">Dashboard action needs attention</div>
             <div style="color:#cccccc;font-size:13px;line-height:1.5;word-break:break-word;">{{ error }}</div>
         </div>
         {% endif %}
@@ -722,6 +722,7 @@
                             <th>Status</th>
                             <th>First Viewed</th>
                             <th>Outcome</th>
+                            <th>Follow-up</th>
                             <th>Context</th>
                             <th>Assessment</th>
                             <th>Fit</th>
@@ -973,7 +974,7 @@
         function renderTable(data) {
             const tbody = document.getElementById('appTableBody');
             if (data.length === 0) {
-                tbody.innerHTML = '<tr class="filter-empty-row"><td colspan="12">No applications match the current filters.</td></tr>';
+                tbody.innerHTML = '<tr class="filter-empty-row"><td colspan="13">No applications match the current filters.</td></tr>';
                 return;
             }
             let html = '';
@@ -993,6 +994,7 @@
                 const personHtml = a.person_name ? '<br><span class="person-name">' + escHtml(a.person_name) + '</span>' : '';
                 const contextLabel = a.has_active_context ? 'Edit Context' : 'Add Context';
                 const contextCell = '<a href="/admin/context/' + a.id + '" class="project-link" style="font-size:0.85rem;">' + contextLabel + '</a>';
+                const followUpCell = followUpAction(a.id, a.followed_up);
 
                 const statusMap = {
                     not_run: { label: 'Not Run', color: '#888888' },
@@ -1037,6 +1039,7 @@
                 html += '<td>' + statusCell + '</td>';
                 html += '<td style="font-size:0.8rem;font-family:var(--mono);color:#888888">' + firstViewStr + '</td>';
                 html += '<td>' + outcomeDropdown(a.id, a.outcome) + '</td>';
+                html += '<td>' + followUpCell + '</td>';
                 html += '<td>' + contextCell + '</td>';
                 html += '<td>' + assessmentCell + '</td>';
                 html += '<td>' + fitCell + '</td>';
@@ -1061,6 +1064,23 @@
                 html += '<option value="' + val + '"' + (val === current ? ' selected' : '') + '>' + label + '</option>';
             });
             html += '</select></form>';
+            return html;
+        }
+
+        function followUpAction(appId, followedUp) {
+            if (followedUp) {
+                let html = '<form action="/dashboard/update-follow-up" method="post" class="outcome-form">';
+                html += '<input type="hidden" name="application_id" value="' + appId + '">';
+                html += '<input type="hidden" name="followed_up" value="false">';
+                html += '<button type="submit" class="outcome-btn" style="background:#333;color:#aaa">Done</button>';
+                html += '</form>';
+                return html;
+            }
+            let html = '<form action="/dashboard/update-follow-up" method="post" class="outcome-form">';
+            html += '<input type="hidden" name="application_id" value="' + appId + '">';
+            html += '<input type="hidden" name="followed_up" value="true">';
+            html += '<button type="submit" class="outcome-btn">Mark Done</button>';
+            html += '</form>';
             return html;
         }
 

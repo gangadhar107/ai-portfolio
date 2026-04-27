@@ -1,4 +1,6 @@
-from database import get_cursor
+from psycopg.rows import dict_row
+
+from database import get_connection, get_cursor
 
 
 def _fetch_id(row) -> int:
@@ -68,8 +70,29 @@ def insert_context(application_id: int, jd_text: str, resume_text: str) -> int:
 
 
 def upsert_context(application_id: int, jd_text: str, resume_text: str) -> int:
-    deactivate_existing_context(application_id)
-    return insert_context(application_id, jd_text, resume_text)
+    with get_connection() as conn:
+        cur = conn.cursor(row_factory=dict_row)
+        try:
+            cur.execute(
+                "UPDATE application_context SET is_active = FALSE WHERE application_id = %s AND is_active = TRUE",
+                (application_id,),
+            )
+            cur.execute(
+                """
+                INSERT INTO application_context (application_id, jd_text, resume_text, is_active)
+                VALUES (%s, %s, %s, TRUE)
+                RETURNING id
+                """,
+                (application_id, jd_text, resume_text),
+            )
+            context_id = _fetch_id(cur.fetchone())
+            cur.execute(
+                "UPDATE applications SET assessment_status = 'not_run' WHERE id = %s",
+                (application_id,),
+            )
+            return int(context_id)
+        finally:
+            cur.close()
 
 
 def insert_assessment(
