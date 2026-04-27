@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fit Context</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
+            <h1 style="margin:0;">Fit Context</h1>
+            <a href="/dashboard" class="project-link">Back to Dashboard →</a>
+        </div>
+
+        {% if error %}
+        <div class="error-banner" style="margin-top:16px;">
+            <strong>⚠️ {{ error }}</strong>
+        </div>
+        {% endif %}
+
+        {% if success %}
+        <div class="success-banner" style="margin-top:16px;">
+            <strong>✅ {{ success }}</strong>
+        </div>
+        {% endif %}
+
+        <div class="card" style="margin-top:20px;">
+            <h2 style="margin-top:0;">Application</h2>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div><strong>Company:</strong> {{ app.company_name }}</div>
+                <div><strong>Role:</strong> {{ app.position }}</div>
+                <div><strong>Date Applied:</strong> {{ app.date_applied }}</div>
+                <div><strong>Outcome:</strong> {{ app.outcome }}</div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+            <h2 style="margin-top:0;">Context</h2>
+            <form method="post" action="/admin/context/{{ app.id }}">
+                <label style="display:block; margin-top:12px;">Job Description (JD)</label>
+                <textarea name="jd_text" rows="10" style="width:100%;" required>{{ context.jd_text if context else "" }}</textarea>
+
+                <label style="display:block; margin-top:12px;">Resume Text</label>
+                <textarea name="resume_text" rows="10" style="width:100%;" required>{{ context.resume_text if context else "" }}</textarea>
+
+                <div style="display:flex; gap:12px; margin-top:16px;">
+                    <button type="submit" class="btn">Save Context</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+            <h2 style="margin-top:0;">Assess Fit</h2>
+            <form method="post" action="/admin/assess-fit">
+                <input type="hidden" name="application_id" value="{{ app.id }}">
+                <button type="submit" class="btn" {% if not context %}disabled{% endif %}>Assess Fit</button>
+            </form>
+            {% if latest %}
+            <div style="margin-top:12px;">
+                <div><strong>Latest:</strong> {{ latest.created_at }}</div>
+                <div><strong>Status:</strong> {{ latest.status }}</div>
+                {% if latest.failure_reason %}
+                <div><strong>Failure:</strong> {{ latest.failure_reason }}</div>
+                {% endif %}
+                {% if latest.fit_confidence %}
+                <div><strong>Fit:</strong> {{ latest.fit_confidence }} ({{ latest.confidence_score }})</div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+            <h2 style="margin-top:0;">History</h2>
+            {% if history and history|length > 0 %}
+            <table style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1);">#</th>
+                        <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1);">Time</th>
+                        <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1);">Fit</th>
+                        <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1);">Score</th>
+                        <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1);">Conflict</th>
+                        <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1);">Failure</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in history %}
+                    <tr>
+                        <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.06);">{{ loop.index }}</td>
+                        <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.06);">{{ row.created_at }}</td>
+                        <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.06);">{{ row.fit_confidence or "" }}</td>
+                        <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.06);">{{ row.confidence_score if row.confidence_score is not none else "" }}</td>
+                        <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.06);">{{ "Yes" if row.signal_conflict else "No" }}</td>
+                        <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.06);">{{ row.failure_reason or "" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div>No assessments yet.</div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
