@@ -149,7 +149,7 @@
 {% endblock %}
 
 {% block content %}
-<section class="contact-header">
+<section class="contact-header" data-section="contact" data-order="5">
     <h1 class="section-title">Let's Talk</h1>
     <p class="section-subtitle">Whether it's a role, a project idea, or just a conversation about tech — I'm always up
         for it.</p>
@@ -164,7 +164,7 @@
                 <div class="reach-info">
                     <div class="reach-label">Email</div>
                     <div class="reach-value"><a
-                            href="mailto:gangadhar.allam2810@gmail.com">gangadhar.allam2810@gmail.com</a></div>
+                            href="mailto:gangadhar.allam2810@gmail.com" data-contact="email">gangadhar.allam2810@gmail.com</a></div>
                 </div>
             </div>
             <div class="card reach-item">
@@ -172,7 +172,7 @@
                 <div class="reach-info">
                     <div class="reach-label">LinkedIn</div>
                     <div class="reach-value"><a href="https://www.linkedin.com/in/allamgangadhar/"
-                            target="_blank">linkedin.com/in/allamgangadhar</a></div>
+                            target="_blank" data-contact="linkedin">linkedin.com/in/allamgangadhar</a></div>
                 </div>
             </div>
             <div class="card reach-item">
@@ -192,7 +192,7 @@
             Skip the emails. Pick a time that works for you and let's have a real conversation.
             I'm available for interviews, technical discussions, and project conversations.
         </p>
-        <a href="{{ calendly_link or '#' }}" target="_blank" class="calendly-btn">
+        <a href="{{ calendly_link or '#' }}" target="_blank" class="calendly-btn" data-contact="calendly">
             Schedule Meeting →
         </a>
     </div>

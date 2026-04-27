@@ -63,8 +63,8 @@
             </div>
             <div class="footer-links">
                 <a href="https://github.com/gangadhar107" target="_blank" rel="noopener">GitHub</a>
-                <a href="https://www.linkedin.com/in/allamgangadhar/" target="_blank" rel="noopener">LinkedIn</a>
-                <a href="mailto:gangadhar.allam2810@gmail.com">Email</a>
+                <a href="https://www.linkedin.com/in/allamgangadhar/" target="_blank" rel="noopener" data-contact="linkedin">LinkedIn</a>
+                <a href="mailto:gangadhar.allam2810@gmail.com" data-contact="email">Email</a>
                 <a href="/contact">Contact</a>
             </div>
             <div class="footer-bottom">
@@ -82,6 +82,172 @@
             links.classList.toggle('open');
             toggle.classList.toggle('open');
         });
+    </script>
+    <script>
+        (function () {
+            if (typeof window.gtag !== "function") return;
+
+            const params = new URLSearchParams(window.location.search);
+            const refCode = params.get("ref") || "";
+            const utmSource = params.get("utm_source") || "";
+            const utmMedium = params.get("utm_medium") || "";
+            const utmCampaign = params.get("utm_campaign") || "";
+
+            if (refCode) {
+                sessionStorage.setItem("ref_code", refCode);
+                sessionStorage.setItem("utm_source", utmSource);
+                sessionStorage.setItem("utm_medium", utmMedium);
+                sessionStorage.setItem("utm_campaign", utmCampaign);
+            }
+
+            const storedRef = sessionStorage.getItem("ref_code") || "";
+            const storedMedium = sessionStorage.getItem("utm_medium") || "";
+            const storedSource = sessionStorage.getItem("utm_source") || "";
+            const storedCampaign = sessionStorage.getItem("utm_campaign") || "";
+
+            if (!storedRef) return;
+            if (storedMedium !== "cold_email") return;
+
+            window.gtag("event", "cold_email_visit_started", {
+                ref_code: storedRef,
+                utm_source: storedSource,
+                utm_medium: storedMedium,
+                utm_campaign: storedCampaign,
+                has_resume_attached: true
+            });
+
+            const firedSections = new Set();
+            const sectionTimers = new WeakMap();
+            const sections = document.querySelectorAll("[data-section]");
+            if (sections.length > 0 && "IntersectionObserver" in window) {
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        const el = entry.target;
+                        const name = el.getAttribute("data-section") || "";
+                        const order = el.getAttribute("data-order") || "";
+                        if (!name || firedSections.has(name)) return;
+
+                        if (entry.isIntersecting) {
+                            if (sectionTimers.get(el)) return;
+                            const t = window.setTimeout(() => {
+                                if (firedSections.has(name)) return;
+                                firedSections.add(name);
+                                window.gtag("event", "section_reached", {
+                                    ref_code: storedRef,
+                                    utm_medium: storedMedium,
+                                    section_name: name,
+                                    section_order: order
+                                });
+                            }, 2000);
+                            sectionTimers.set(el, t);
+                            return;
+                        }
+                        const existing = sectionTimers.get(el);
+                        if (existing) window.clearTimeout(existing);
+                        sectionTimers.delete(el);
+                    });
+                }, { threshold: 0.5 });
+                sections.forEach(s => observer.observe(s));
+            }
+
+            const firedProject = new Set();
+            const projectTimers = new WeakMap();
+            document.querySelectorAll("[data-project]").forEach(card => {
+                const name = card.getAttribute("data-project") || "";
+                if (!name) return;
+
+                card.addEventListener("click", () => {
+                    const key = name + "::click";
+                    if (firedProject.has(key)) return;
+                    firedProject.add(key);
+                    window.gtag("event", "project_engaged", {
+                        ref_code: storedRef,
+                        utm_medium: storedMedium,
+                        project_name: name,
+                        engagement_type: "click"
+                    });
+                });
+
+                card.addEventListener("mouseenter", () => {
+                    if (projectTimers.get(card)) return;
+                    const t = window.setTimeout(() => {
+                        const key = name + "::hover";
+                        if (firedProject.has(key)) return;
+                        firedProject.add(key);
+                        window.gtag("event", "project_engaged", {
+                            ref_code: storedRef,
+                            utm_medium: storedMedium,
+                            project_name: name,
+                            engagement_type: "hover_3s"
+                        });
+                    }, 3000);
+                    projectTimers.set(card, t);
+                });
+
+                const cancel = () => {
+                    const t = projectTimers.get(card);
+                    if (!t) return;
+                    window.clearTimeout(t);
+                    projectTimers.delete(card);
+                };
+                card.addEventListener("mouseleave", cancel);
+                card.addEventListener("blur", cancel);
+            });
+
+            document.querySelectorAll("[data-contact]").forEach(el => {
+                const contactType = el.getAttribute("data-contact") || "";
+                if (!contactType) return;
+                el.addEventListener("click", () => {
+                    window.gtag("event", "outreach_initiated", {
+                        ref_code: storedRef,
+                        utm_medium: storedMedium,
+                        contact_type: contactType
+                    });
+                });
+            });
+
+            const milestones = [30, 60, 120, 180];
+            const fired = new Set();
+            let activeSeconds = 0;
+            let interval = null;
+
+            const tick = () => {
+                activeSeconds += 1;
+                if (milestones.includes(activeSeconds) && !fired.has(activeSeconds)) {
+                    fired.add(activeSeconds);
+                    window.gtag("event", "active_time_milestone", {
+                        ref_code: storedRef,
+                        utm_medium: storedMedium,
+                        active_seconds: activeSeconds
+                    });
+                }
+                if (fired.size >= milestones.length && interval) {
+                    window.clearInterval(interval);
+                    interval = null;
+                }
+            };
+
+            const start = () => {
+                if (interval) return;
+                interval = window.setInterval(tick, 1000);
+            };
+
+            const stop = () => {
+                if (!interval) return;
+                window.clearInterval(interval);
+                interval = null;
+            };
+
+            document.addEventListener("visibilitychange", () => {
+                if (document.hidden) {
+                    stop();
+                    return;
+                }
+                start();
+            });
+
+            if (!document.hidden) start();
+        })();
     </script>
     <script>
         (function () {

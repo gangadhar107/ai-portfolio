@@ -54,7 +54,7 @@ This is not a standard portfolio. It is a three-stage feedback loop:
 | Language | Python | Primary language |
 | Framework | FastAPI + Jinja2 | Server-side templates, no React |
 | Database (dev) | PostgreSQL local | Direct psycopg (psycopg3), no ORM |
-| Database (prod) | Neon free tier | Swap DATABASE_URL only |
+| Database (prod) | CockroachDB serverless | Swap DATABASE_URL only (set in Vercel env vars) |
 | DB Adapter | psycopg[binary] (psycopg3) | Raw SQL always |
 | Charts | Chart.js | Dashboard visualisations |
 | Hosting | Vercel free tier | Connected to GitHub |
@@ -67,7 +67,9 @@ This is not a standard portfolio. It is a three-stage feedback loop:
 
 **Why PostgreSQL over Supabase:** Supabase API issues encountered in Phase 1.
 Switched to direct PostgreSQL with psycopg (psycopg3). Simpler, more reliable.
-Migration to Neon at deploy time requires only a connection string change.
+Migration to CockroachDB requires only a connection string change.
+
+**CockroachDB + Vercel SSL note:** Prefer `sslmode=require` in `DATABASE_URL` on Vercel. `sslmode=verify-full` needs a CA file that is not present by default in the serverless runtime.
 
 ---
 
@@ -83,18 +85,28 @@ ai-portfolio/
 ├── CLAUDE.md                 # This file — project brain
 ├── routers/
 │   ├── __init__.py
-│   ├── tracking.py           # Ref code generator, visit logger, email notify
-│   └── intelligence.py       # Portfolio Intelligence — Groq insights
+│   ├── tracking.py           # Ref code generator, visit logger, admin, dashboard, fit routes
+│   └── intelligence.py       # Portfolio Intelligence — Groq insights (v1.1)
 ├── database/
 │   └── __init__.py           # get_connection(), get_cursor() via psycopg (psycopg3)
+├── services/
+│   └── fit/                   # v1.3 Fit Engine (Groq extract + deterministic scoring)
+│       ├── vocabulary.py
+│       ├── normalization.py
+│       ├── jd_parser.py
+│       ├── matcher.py
+│       ├── scoring.py
+│       └── repository.py
 ├── templates/
 │   ├── base.html             # Jinja2 base layout — dark theme, nav, footer
 │   ├── home.html             # Home page
 │   ├── about.html            # About page
-│   ├── projects.html         # Projects page
+│   ├── projects_final.html    # Projects page
+│   ├── blog.html              # Writing page
 │   ├── contact.html          # Contact + Calendly embed
 │   ├── admin.html            # Private application form — password protected
 │   ├── dashboard.html        # Private analytics dashboard — password protected
+│   ├── context.html          # v1.3 Fit context editor + assessment history — password protected
 │   └── insights.html         # Portfolio Intelligence page — password protected
 ├── static/
 │   └── css/                  # PostHog-inspired dark theme
@@ -105,45 +117,38 @@ ai-portfolio/
 
 ## Database Schema
 
+Schema reference: [schema.sql](file:///c:/Users/ganga/OneDrive/Desktop/ai-portfolio/ai-portfolio/database/schema.sql)
+
 ### applications
-```sql
-CREATE TYPE outcome_type AS ENUM ('pending', 'got_call', 'rejected', 'no_response');
+- Core: `company_name`, `position`, `date_applied`, `outcome`, `ref_code`, `notes`
+- v1.2 enrichment: `outreach_channel`, `contact_person`, `role_category`, `followed_up`, `follow_up_date`, `follow_up_response`, `outcome_date`, `rejection_reason`
+- v1.3 fit status: `assessment_status` (`not_run`, `completed`, `weak_jd`, `failed`)
 
-CREATE TABLE applications (
-    id            SERIAL PRIMARY KEY,
-    company_name  TEXT NOT NULL,
-    person_name   TEXT,
-    position      TEXT NOT NULL,
-    date_applied  DATE NOT NULL,
-    outcome       outcome_type DEFAULT 'pending',
-    ref_code      TEXT UNIQUE,
-    notes         TEXT,
-    created_at    TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-### visits
-```sql
-CREATE TABLE visits (
-    id            SERIAL PRIMARY KEY,
-    ref_code      TEXT NOT NULL,
-    timestamp     TIMESTAMPTZ DEFAULT NOW(),
-    visit_count   INTEGER DEFAULT 1,
-    pages_visited TEXT,
-    country       TEXT
-);
-```
+Outcome values are validated in code and treated as a controlled vocabulary: `pending`, `got_call`, `rejected`, `no_response`.
 
 ### ref_codes
-```sql
-CREATE TABLE ref_codes (
-    id              SERIAL PRIMARY KEY,
-    ref_code        TEXT UNIQUE NOT NULL,
-    application_id  INTEGER REFERENCES applications(id),
-    created_date    TIMESTAMPTZ DEFAULT NOW(),
-    is_active       BOOLEAN DEFAULT TRUE
-);
-```
+- Maps `ref_code` → `application_id`
+
+### visits
+- One row per visit (ref-code traffic only)
+- v1.2 tracking fields:
+  - `visit_token` (unique per pageview for correct time tracking)
+  - `is_return_visit`
+  - `visit_source` (derived with fixed precedence)
+  - `time_on_site` (visible time, updated via `/track-time`, idempotent using `GREATEST()`)
+  - `utm_source`, `utm_medium` (stored only when `ref` is present; UTM-only visits remain GA4-only and do not touch Postgres)
+
+### application_context (v1.3)
+- Stores the active JD + resume text for a specific application.
+- Enforces one active context per application (`is_active = TRUE`).
+
+### fit_assessments (v1.3)
+- Stores assessment attempts (history) and the latest usable assessment for dashboard display.
+- JSONB fields: `matching_skills`, `missing_skills`, `jd_weights`, `rejected_terms`
+- Key text fields:
+  - `fit_score` (from matcher LLM)
+  - `fit_confidence` and `confidence_score` (deterministic Python scoring)
+  - `failure_reason` (controlled reasons like `jd_extraction_invalid`, `jd_extraction_empty`, `matcher_invalid`, `weighted_total_zero`, `score_invalid`)
 
 **Key relationship:** ref_code connects all three tables.
 Application has a ref_code. Visits log that ref_code. Join all three for full funnel view.
@@ -156,11 +161,15 @@ Application has a ref_code. Visits log that ref_code. Join all three for full fu
 # Local PostgreSQL (dev)
 DATABASE_URL=postgresql://portfolio_user:password@localhost:5432/portfolio_db
 
-# Neon cloud PostgreSQL (prod — set in Vercel dashboard only)
-# DATABASE_URL=postgresql://user:pass@host.neon.tech/portfolio_db
+# CockroachDB (prod — set in Vercel dashboard only)
+# Prefer sslmode=require on Vercel to avoid missing CA file errors.
+# DATABASE_URL=postgresql://user:pass@host.cockroachlabs.cloud:26257/defaultdb?sslmode=require
 
 # Dashboard and admin password
 DASHBOARD_PASSWORD=your_password_here
+
+# HMAC secret used to sign the auth cookie token (must be set)
+SESSION_SECRET_KEY=your_random_hex_string
 
 # Email notification settings
 NOTIFICATION_EMAIL=your_gmail@gmail.com
@@ -174,6 +183,13 @@ CALENDLY_LINK=https://calendly.com/your-link
 
 # Groq API key for Portfolio Intelligence
 GROQ_API_KEY=your_groq_key_here
+
+# GA4 (frontend + server-side Measurement Protocol)
+GA4_MEASUREMENT_ID=G-XXXXXXXXXX
+GA4_API_SECRET=your_ga4_api_secret
+
+# Internal traffic exclusion (comma-separated IPs)
+EXCLUDED_IPS=1.2.3.4,5.6.7.8
 ```
 
 ---
@@ -186,6 +202,7 @@ GROQ_API_KEY=your_groq_key_here
 | GET | / | Home page — triggers visit logger if ?ref= present |
 | GET | /about | About page |
 | GET | /projects | Projects page |
+| GET | /blog | Writing page |
 | GET | /contact | Contact page with Calendly embed |
 
 ### Private Routes (password protected)
@@ -195,6 +212,9 @@ GROQ_API_KEY=your_groq_key_here
 | POST | /admin/application | Save application + generate ref link |
 | GET | /dashboard | Analytics dashboard |
 | POST | /dashboard/update-outcome | Update application outcome |
+| GET | /admin/context/{application_id} | v1.3 Fit context editor + assessment history |
+| POST | /admin/context/{application_id} | Save JD + resume context (activates new context, resets status) |
+| POST | /admin/assess-fit | Run fit assessment and store results |
 | GET | /insights | Portfolio Intelligence full page |
 | POST | /insights/refresh | Clear cache and regenerate insights |
 
@@ -202,6 +222,7 @@ GROQ_API_KEY=your_groq_key_here
 | Method | Path | Description |
 |---|---|---|
 | POST | /generate-ref | Generate ref code, return full URL |
+| POST | /track-time | Update `time_on_site` for a single visit using `visit_token` (idempotent) |
 
 ---
 
@@ -210,8 +231,14 @@ GROQ_API_KEY=your_groq_key_here
 ### routers/tracking.py
 - `generate_ref_code()` — Python secrets module, 8-char alphanumeric, unique
 - `save_application()` — inserts to applications + ref_codes in a transaction
-- `log_visit()` — inserts to visits, clears insight cache on success
-- Email notification via smtplib — fires on first visit only per ref code
+- `log_visit()` — inserts a new visits row and returns `visit_token`; also clears insight cache
+- `/track-time` — updates one row by `visit_token` and uses `GREATEST()` so duplicate beacons are safe
+- Internal traffic exclusion:
+  - IP-based via `X-Forwarded-For` + `EXCLUDED_IPS`
+  - cookie-based via `portfolio_owner=true` after admin login
+- Rate limiting: caps rapid repeats per `(ip, ref_code)` window (dedupe + anti-spam)
+- Email notifications (optional): when configured, sends an email on first recruiter visit for a ref code
+- GA4 Measurement Protocol (server-side): sends `recruiter_visit` when GA4 creds exist and `_ga` cookie provides a client_id
 
 ### routers/intelligence.py
 - `collect_portfolio_data()` — queries all three tables, returns structured dict
@@ -240,6 +267,13 @@ Do not use Redis or database caching — unnecessary complexity.
 - `get_connection()` — returns psycopg (psycopg3) connection from DATABASE_URL
 - `get_cursor()` — returns connection + cursor together
 
+### services/fit (v1.3 Fit Engine)
+- `jd_parser.py` — Groq extracts JD requirements into `must_have / important / nice_to_have` JSON. Non-string items make the extraction invalid.
+- `normalization.py` — normalizes skill terms onto a canonical vocabulary using synonyms + RapidFuzz; creates weighted JD weights.
+- `matcher.py` — Groq produces canonical `matching_skills / missing_skills` + `fit_score` JSON. Non-string items make the match invalid.
+- `scoring.py` — deterministic confidence score in Python + validation (`score_invalid` if out-of-range or non-finite).
+- `repository.py` — raw SQL read/write for `application_context` and `fit_assessments`; dashboard query uses "latest attempt vs latest usable assessment" semantics.
+
 ---
 
 ## Security Rules
@@ -248,7 +282,7 @@ Do not use Redis or database caching — unnecessary complexity.
 - Ref codes use Python secrets module — cryptographically secure
 - /admin and /dashboard fully blocked without correct password
 - Invalid ?ref= values silently ignored — no 500 errors, no fake rows
-- Rate limiting on visit logger — 1 log per IP per hour per ref code
+- Internal traffic excluded via owner cookie and/or IP allowlist
 - XSS inputs in ref codes handled safely
 - Snyk scan connected to GitHub — all high/critical issues resolved
 - .env verified never appears in git history
@@ -299,8 +333,11 @@ Saved in `/sql_queries/` — each file answers one specific question:
 | Phase 3 | Portfolio pages, PostHog dark theme, mobile responsive | COMPLETE |
 | Phase 4 | SQL analytics, Chart.js charts, stat cards | COMPLETE |
 | Phase 5 | Security audit, Snyk, rate limiting, input validation | COMPLETE |
-| Phase 6 | Deployed to Vercel + Neon, live URL | COMPLETE |
-| v1.1 | Portfolio Intelligence — Groq AI insights layer | IN PROGRESS |
+| Phase 6 | Deployed to Vercel (DATABASE_URL points to cloud DB) | COMPLETE |
+| v1.1 | Portfolio Intelligence — Groq AI insights layer | COMPLETE |
+| v1.2 | GA4 + UTM-aware visit logging + time-on-site token tracking | COMPLETE |
+| v1.3 | Fit Engine (context + deterministic scoring + dashboard columns) | IN PROGRESS |
+| v1.4 | GA4 Cold Email Recruiter Intelligence events | IN PROGRESS |
 
 ---
 
@@ -310,10 +347,18 @@ Saved in `/sql_queries/` — each file answers one specific question:
 Portfolio + ref code tracking + private dashboard + SQL analytics.
 Zero AI features. $0/month.
 
-**v1.1 — IN PROGRESS**
-Portfolio Intelligence. Groq + LLaMA 3.3 70B analyses visit and application
-data and generates actionable insights. Event-based + manual refresh.
-Insight cards on dashboard and full /insights page.
+**v1.1 — COMPLETE**
+Portfolio Intelligence. Groq + LLaMA 3.3 70B analyses visit and application data and generates actionable insights.
+Event-based + manual refresh. Insight cards on dashboard and full /insights page.
+
+**v1.2 — COMPLETE**
+Visit-quality improvements: per-visit tokens for time-on-site, internal traffic exclusion, GA4 integration, and UTM capture for ref-code visits.
+
+**v1.3 — IN PROGRESS**
+Fit Engine: store per-application JD + resume context, run LLM extraction/matching, and compute a deterministic fit confidence score. Add Context/Assessment/Fit/Priority/Disagreement columns to dashboard.
+
+**v1.4 — IN PROGRESS**
+GA4 Recruiter Intelligence for cold email traffic: `cold_email_visit_started`, `section_reached`, `project_engaged`, `active_time_milestone`, `outreach_initiated`.
 
 **v2.0 — PLANNED**
 RAG chatbot powered by Groq free tier. Single agent. Knows your work.
@@ -364,12 +409,11 @@ When Claude Code finishes a task, the result should:
 
 ## Current Task Context
 
-**Active feature:** Portfolio Intelligence (v1.1)
-**Files to create:** routers/intelligence.py + templates/insights.html
-**Files to modify:** templates/dashboard.html (add 2-card summary section)
-**Security status:** Complete — both issues resolved and committed
-**Last commit:** d608615 — fix: move HMAC session key to environment variable
+**Active features:** Fit Engine (v1.3) + GA4 Recruiter Intelligence (v1.4)
+**Fit engine scope:** Private admin only (dashboard + context editor). Reproducible scoring: LLM extracts/matches, Python computes weighted confidence score.
+**GA4 cold-email scope:** Only fires GA4 events when `utm_medium=cold_email` and a `ref` exists (stored in sessionStorage); adds `data-*` hooks only to existing template elements.
 **Model used:** Groq llama-3.3-70b-versatile
-**Key constraint:** In-memory cache only, resets on restart, acceptable for this project
-**Do not:** Use Redis, database caching, or any paid services
-**Do not:** Touch any existing routes or templates except dashboard.html (add insights summary card)
+**Key constraints:**
+- Raw SQL via psycopg (psycopg3)
+- In-memory cache only for insights (no Redis)
+- Do not store anonymous UTM-only visits in Postgres (GA4-only)
