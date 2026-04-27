@@ -1,8 +1,7 @@
 -- AI Portfolio Database Schema
 -- Phase 1: Three core tables for the ref code tracking system
 
--- Create ENUM type for application outcomes
-CREATE TYPE IF NOT EXISTS application_outcome AS ENUM ('pending', 'got_call', 'rejected', 'no_response');
+-- CREATE TYPE application_outcome AS ENUM ('pending', 'got_call', 'rejected', 'no_response');
 
 -- Table 1: applications — stores every job application you submit
 CREATE TABLE IF NOT EXISTS applications (
@@ -22,6 +21,7 @@ CREATE TABLE IF NOT EXISTS applications (
     follow_up_response TEXT,
     outcome_date       DATE,
     rejection_reason   TEXT,
+    assessment_status  TEXT DEFAULT 'not_run',
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -58,3 +58,39 @@ CREATE INDEX IF NOT EXISTS idx_ref_codes_ref_code ON ref_codes(ref_code);
 
 -- Index for application outcome filtering
 CREATE INDEX IF NOT EXISTS idx_applications_outcome ON applications(outcome);
+
+CREATE TABLE IF NOT EXISTS application_context (
+    id             SERIAL PRIMARY KEY,
+    application_id INTEGER REFERENCES applications(id) ON DELETE CASCADE,
+    jd_text        TEXT NOT NULL,
+    resume_text    TEXT NOT NULL,
+    created_at     TIMESTAMPTZ DEFAULT NOW(),
+    is_active      BOOLEAN DEFAULT TRUE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS one_active_context_per_application
+ON application_context (application_id)
+WHERE is_active = TRUE;
+
+CREATE TABLE IF NOT EXISTS fit_assessments (
+    id               SERIAL PRIMARY KEY,
+    application_id   INTEGER REFERENCES applications(id) ON DELETE CASCADE,
+    context_id       INTEGER REFERENCES application_context(id),
+    fit_score        TEXT,
+    fit_confidence   TEXT,
+    confidence_score FLOAT,
+    signal_conflict  BOOLEAN DEFAULT FALSE,
+    matching_skills  JSONB,
+    missing_skills   JSONB,
+    jd_weights       JSONB,
+    rejected_terms   JSONB,
+    failure_reason   TEXT,
+    vocab_version    TEXT,
+    created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_application_context_application_id
+ON application_context(application_id);
+
+CREATE INDEX IF NOT EXISTS idx_fit_assessments_application_latest
+ON fit_assessments(application_id, created_at DESC, id DESC);
