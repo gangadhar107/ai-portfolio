@@ -722,6 +722,11 @@
                             <th>Status</th>
                             <th>First Viewed</th>
                             <th>Outcome</th>
+                            <th>Context</th>
+                            <th>Assessment</th>
+                            <th>Fit</th>
+                            <th>Priority</th>
+                            <th>Disagreement</th>
                         </tr>
                     </thead>
                     <tbody id="appTableBody">
@@ -968,7 +973,7 @@
         function renderTable(data) {
             const tbody = document.getElementById('appTableBody');
             if (data.length === 0) {
-                tbody.innerHTML = '<tr class="filter-empty-row"><td colspan="7">No applications match the current filters.</td></tr>';
+                tbody.innerHTML = '<tr class="filter-empty-row"><td colspan="12">No applications match the current filters.</td></tr>';
                 return;
             }
             let html = '';
@@ -986,6 +991,44 @@
                     statusCell = '<span style="font-size:11px;color:#4caf50">Viewed</span>';
                 }
                 const personHtml = a.person_name ? '<br><span class="person-name">' + escHtml(a.person_name) + '</span>' : '';
+                const contextLabel = a.has_active_context ? 'Edit Context' : 'Add Context';
+                const contextCell = '<a href="/admin/context/' + a.id + '" class="project-link" style="font-size:0.85rem;">' + contextLabel + '</a>';
+
+                const statusMap = {
+                    not_run: { label: 'Not Run', color: '#888888' },
+                    completed: { label: 'Completed', color: '#4caf50' },
+                    weak_jd: { label: 'Weak JD', color: '#e8d44d' },
+                    failed: { label: 'Failed', color: '#ff4d4d' }
+                };
+                const as = (a.assessment_status || 'not_run').toLowerCase();
+                const meta = statusMap[as] || statusMap.not_run;
+                let assessmentCell = '<span style="font-size:11px;font-weight:600;color:' + meta.color + '">' + meta.label + '</span>';
+                if (as === 'failed' && a.failure_reason) {
+                    assessmentCell += '<br><span style="font-size:11px;color:#888888">' + escHtml(a.failure_reason) + '</span>';
+                }
+
+                let fitCell = '—';
+                if (a.fit_confidence) {
+                    const pct = (typeof a.confidence_score === 'number') ? Math.round(a.confidence_score * 100) : null;
+                    const pctStr = (pct !== null && !Number.isNaN(pct)) ? ' (' + pct + '%)' : '';
+                    fitCell = '<span style="font-size:11px;font-weight:600;color:#e8d44d">' + escHtml(a.fit_confidence) + '</span>' + pctStr;
+                    if (a.signal_conflict) {
+                        fitCell += '<br><span style="font-size:11px;color:#ff4d4d">Conflict</span>';
+                    }
+                }
+
+                let priorityCell = '—';
+                if (a.priority === 'high') {
+                    priorityCell = '<span style="font-size:11px;font-weight:700;color:#ff4d4d">HIGH</span>';
+                } else if (a.priority === 'medium') {
+                    priorityCell = '<span style="font-size:11px;font-weight:700;color:#e8d44d">MED</span>';
+                } else if (a.priority === 'low') {
+                    priorityCell = '<span style="font-size:11px;font-weight:700;color:#888888">LOW</span>';
+                }
+
+                let disagreementCell = '—';
+                if (a.disagreement === true) disagreementCell = '<span style="font-size:11px;font-weight:700;color:#ff4d4d">Yes</span>';
+                if (a.disagreement === false) disagreementCell = '<span style="font-size:11px;color:#888888">No</span>';
                 html += '<tr>';
                 html += '<td><span class="company-name">' + escHtml(a.company_name) + '</span>' + personHtml + '</td>';
                 html += '<td>' + escHtml(a.position) + '</td>';
@@ -994,6 +1037,11 @@
                 html += '<td>' + statusCell + '</td>';
                 html += '<td style="font-size:0.8rem;font-family:var(--mono);color:#888888">' + firstViewStr + '</td>';
                 html += '<td>' + outcomeDropdown(a.id, a.outcome) + '</td>';
+                html += '<td>' + contextCell + '</td>';
+                html += '<td>' + assessmentCell + '</td>';
+                html += '<td>' + fitCell + '</td>';
+                html += '<td>' + priorityCell + '</td>';
+                html += '<td>' + disagreementCell + '</td>';
                 html += '</tr>';
             });
             tbody.innerHTML = html;

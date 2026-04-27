@@ -605,45 +605,84 @@ async def dashboard_page(request: Request):
             "request": request,
             "redirect_to": "/dashboard"
         })
-    
-    with get_cursor() as cur:
-        # Get all applications with visit counts
-        cur.execute("""
-            SELECT 
-                a.id,
-                a.company_name,
-                a.person_name,
-                a.position,
-                a.date_applied,
-                a.outcome,
-                a.ref_code,
-                COUNT(v.id) AS visit_count,
-                MIN(v.timestamp) AS first_visit
-            FROM applications a
-            LEFT JOIN visits v ON a.ref_code = v.ref_code
-            GROUP BY a.id
-            ORDER BY a.date_applied DESC
-        """)
-        applications = cur.fetchall()
-    
-    # Build the complete dataset as JSON for client-side filtering
-    all_applications = []
-    for app in applications:
+
+    today = datetime.now().date()
+    raw_rows: list[dict] = []
+    internal_error: str | None = None
+    try:
+        from services.fit.repository import get_dashboard_fit_summary
+        raw_rows = get_dashboard_fit_summary()
+    except Exception as e:
+        internal_error = f"{type(e).__name__}: {str(e)[:160]}"
+        raw_rows = []
+
+    all_applications: list[dict] = []
+    for row in raw_rows:
         first_viewed = None
-        if app["first_visit"]:
-            first_viewed = app["first_visit"].strftime("%Y-%m-%d %H:%M")
-        
+        fv = row.get("first_visit")
+        if fv:
+            try:
+                first_viewed = fv.strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                first_viewed = str(fv)
+
+        date_applied_val = row.get("date_applied")
+        date_applied_str = ""
+        if date_applied_val:
+            try:
+                date_applied_str = date_applied_val.strftime("%Y-%m-%d")
+            except Exception:
+                date_applied_str = str(date_applied_val)
+
+        views = int(row.get("visit_count") or 0)
+        outcome = row.get("outcome") or "pending"
+        followed_up = bool(row.get("followed_up") or False)
+
+        status = (row.get("assessment_status") or "not_run").strip().lower()
+        fit_confidence = row.get("fit_confidence")
+        if fit_confidence:
+            fit_confidence = str(fit_confidence).strip().lower()
+
+        priority = None
+        disagreement = None
+        if status in {"completed", "weak_jd"} and fit_confidence in {"high", "medium", "low"}:
+            if fit_confidence == "high":
+                if views > 0 and not followed_up and date_applied_val and date_applied_val <= (today - timedelta(days=3)):
+                    priority = "high"
+                else:
+                    priority = "medium"
+            elif fit_confidence == "medium":
+                priority = "medium"
+            elif fit_confidence == "low":
+                priority = "low"
+
+            disagreement = (fit_confidence == "high" and outcome in {"rejected", "no_response"}) or (fit_confidence == "low" and outcome == "got_call")
+
+        has_context = row.get("context_id") is not None
+        if status not in {"completed", "weak_jd"}:
+            fit_confidence = ""
+
         all_applications.append({
-            "id": str(app["id"]),
-            "company_name": app["company_name"],
-            "person_name": app["person_name"] or "",
-            "position": app["position"],
-            "date_applied": app["date_applied"].strftime("%Y-%m-%d") if app["date_applied"] else "",
-            "outcome": app["outcome"],
-            "ref_code": app["ref_code"] or "",
-            "views": app["visit_count"],
+            "id": str(row.get("id")),
+            "company_name": row.get("company_name") or "",
+            "person_name": row.get("person_name") or "",
+            "position": row.get("position") or "",
+            "date_applied": date_applied_str,
+            "outcome": outcome,
+            "ref_code": row.get("ref_code") or "",
+            "views": views,
             "first_viewed": first_viewed,
-            "viewed": app["visit_count"] > 0,
+            "viewed": views > 0,
+            "followed_up": followed_up,
+            "assessment_status": status,
+            "has_active_context": has_context,
+            "fit_score": (row.get("fit_score") or "") if status in {"completed", "weak_jd"} else "",
+            "fit_confidence": fit_confidence or "",
+            "confidence_score": row.get("confidence_score") if status in {"completed", "weak_jd"} else None,
+            "signal_conflict": bool(row.get("signal_conflict") or False) if status in {"completed", "weak_jd"} else False,
+            "failure_reason": row.get("failure_reason") or "",
+            "priority": priority,
+            "disagreement": disagreement,
         })
     
     # ── AI Insights ──
@@ -656,7 +695,7 @@ async def dashboard_page(request: Request):
         except Exception:
             insights = []
 
-    error = request.query_params.get("error")
+    error = request.query_params.get("error") or internal_error
     
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
@@ -723,3 +762,244 @@ async def update_outcome(
         pass
     
     return RedirectResponse(url="/dashboard", status_code=303)
+
+
+@router.get("/admin/context/{application_id}", response_class=HTMLResponse)
+async def context_page(request: Request, application_id: int):
+    auth = request.cookies.get("auth", "")
+    if not hmac.compare_digest(auth, SESSION_TOKEN):
+        return templates.TemplateResponse("admin_login.html", {
+            "request": request,
+            "redirect_to": f"/admin/context/{application_id}"
+        })
+
+    error = request.query_params.get("error")
+    success = request.query_params.get("success")
+
+    try:
+        from services.fit.repository import get_application, get_active_context, get_assessment_history
+        app = get_application(application_id)
+        if not app:
+            return templates.TemplateResponse("context.html", {
+                "request": request,
+                "app": {"id": application_id, "company_name": "Unknown", "position": "", "date_applied": "", "outcome": ""},
+                "context": None,
+                "history": [],
+                "latest": None,
+                "error": "Application not found",
+                "success": None,
+            })
+
+        context = get_active_context(application_id)
+        history = get_assessment_history(application_id, limit=10)
+
+        latest = None
+        if history:
+            latest = {
+                "created_at": history[0].get("created_at"),
+                "status": app.get("assessment_status") or "not_run",
+                "failure_reason": history[0].get("failure_reason"),
+                "fit_confidence": history[0].get("fit_confidence"),
+                "confidence_score": history[0].get("confidence_score"),
+            }
+
+        app_view = dict(app)
+        if app_view.get("date_applied"):
+            app_view["date_applied"] = app_view["date_applied"].strftime("%Y-%m-%d")
+
+        return templates.TemplateResponse("context.html", {
+            "request": request,
+            "app": app_view,
+            "context": context,
+            "history": history,
+            "latest": latest,
+            "error": error,
+            "success": success,
+        })
+    except Exception as e:
+        return templates.TemplateResponse("context.html", {
+            "request": request,
+            "app": {"id": application_id, "company_name": "Unknown", "position": "", "date_applied": "", "outcome": ""},
+            "context": None,
+            "history": [],
+            "latest": None,
+            "error": f"{type(e).__name__}: {str(e)[:160]}",
+            "success": None,
+        })
+
+
+@router.post("/admin/context/{application_id}")
+async def save_context(request: Request, application_id: int, jd_text: str = Form(...), resume_text: str = Form(...)):
+    auth = request.cookies.get("auth", "")
+    if not hmac.compare_digest(auth, SESSION_TOKEN):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    jd = (jd_text or "").strip()
+    resume = (resume_text or "").strip()
+    if len(jd) < 20 or len(resume) < 20:
+        safe_msg = "JD and resume must be at least 20 characters"
+        return RedirectResponse(url=f"/admin/context/{application_id}?error={urlparse.quote(safe_msg)}", status_code=303)
+
+    try:
+        from services.fit.repository import upsert_context
+        upsert_context(application_id, jd, resume)
+        return RedirectResponse(url=f"/admin/context/{application_id}?success={urlparse.quote('Context saved')}", status_code=303)
+    except Exception as e:
+        safe_msg = f"{type(e).__name__}: {str(e)[:160]}"
+        return RedirectResponse(url=f"/admin/context/{application_id}?error={urlparse.quote(safe_msg)}", status_code=303)
+
+
+@router.post("/admin/assess-fit")
+async def assess_fit(request: Request, application_id: int = Form(...)):
+    auth = request.cookies.get("auth", "")
+    if not hmac.compare_digest(auth, SESSION_TOKEN):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        from services.fit.repository import get_active_context, insert_assessment, update_assessment_status
+        context = get_active_context(application_id)
+        if not context:
+            safe_msg = "No active context saved"
+            return RedirectResponse(url=f"/admin/context/{application_id}?error={urlparse.quote(safe_msg)}", status_code=303)
+
+        from groq import Groq
+        api_key = os.getenv("GROQ_API_KEY", "").strip()
+        if not api_key:
+            assessment = {
+                "failure_reason": "jd_extraction_invalid",
+                "matching_skills_json": "[]",
+                "missing_skills_json": "[]",
+                "jd_weights_json": "{}",
+                "rejected_terms_json": "[]",
+                "vocab_version": "v1",
+            }
+            insert_assessment(application_id, context["id"], assessment)
+            update_assessment_status(application_id, "failed")
+            return RedirectResponse(url=f"/admin/context/{application_id}?error={urlparse.quote('GROQ_API_KEY not set')}", status_code=303)
+
+        client = Groq(api_key=api_key)
+
+        from services.fit.jd_parser import parse_job_description
+        from services.fit.normalization import build_jd_weights, normalize_terms
+        from services.fit.matcher import match_resume_to_jd
+        from services.fit.scoring import compute_confidence_score, label_confidence, signal_conflict, validate_confidence_score
+        from services.fit.vocabulary import CANONICAL_SKILLS, SYNONYM_MAP, VOCAB_VERSION
+
+        try:
+            parsed = parse_job_description(client, context["jd_text"])
+        except ValueError as ve:
+            code = str(ve)
+            assessment = {
+                "failure_reason": code if code in {"jd_extraction_invalid", "jd_extraction_empty"} else "jd_extraction_invalid",
+                "matching_skills_json": "[]",
+                "missing_skills_json": "[]",
+                "jd_weights_json": "{}",
+                "rejected_terms_json": "[]",
+                "vocab_version": VOCAB_VERSION,
+            }
+            insert_assessment(application_id, context["id"], assessment)
+            update_assessment_status(application_id, "failed")
+            return RedirectResponse(url=f"/admin/context/{application_id}?error={urlparse.quote(assessment['failure_reason'])}", status_code=303)
+        except Exception:
+            assessment = {
+                "failure_reason": "jd_extraction_invalid",
+                "matching_skills_json": "[]",
+                "missing_skills_json": "[]",
+                "jd_weights_json": "{}",
+                "rejected_terms_json": "[]",
+                "vocab_version": VOCAB_VERSION,
+            }
+            insert_assessment(application_id, context["id"], assessment)
+            update_assessment_status(application_id, "failed")
+            return RedirectResponse(url=f"/admin/context/{application_id}?error={urlparse.quote('jd_extraction_invalid')}", status_code=303)
+
+        jd_weights, rejected = build_jd_weights(
+            parsed["must_have"],
+            parsed["important"],
+            parsed["nice_to_have"],
+            CANONICAL_SKILLS,
+            SYNONYM_MAP,
+        )
+        if sum(jd_weights.values()) <= 0:
+            assessment = {
+                "failure_reason": "weighted_total_zero",
+                "matching_skills_json": "[]",
+                "missing_skills_json": "[]",
+                "jd_weights_json": "{}",
+                "rejected_terms_json": json.dumps(rejected),
+                "vocab_version": VOCAB_VERSION,
+            }
+            insert_assessment(application_id, context["id"], assessment)
+            update_assessment_status(application_id, "failed")
+            return RedirectResponse(url=f"/admin/context/{application_id}?error={urlparse.quote('weighted_total_zero')}", status_code=303)
+
+        try:
+            match = match_resume_to_jd(client, context["jd_text"], context["resume_text"], CANONICAL_SKILLS)
+        except ValueError:
+            assessment = {
+                "failure_reason": "matcher_invalid",
+                "matching_skills_json": "[]",
+                "missing_skills_json": "[]",
+                "jd_weights_json": json.dumps(jd_weights),
+                "rejected_terms_json": json.dumps(rejected),
+                "vocab_version": VOCAB_VERSION,
+            }
+            insert_assessment(application_id, context["id"], assessment)
+            update_assessment_status(application_id, "failed")
+            return RedirectResponse(url=f"/admin/context/{application_id}?error={urlparse.quote('matcher_invalid')}", status_code=303)
+        except Exception:
+            assessment = {
+                "failure_reason": "matcher_failed",
+                "matching_skills_json": "[]",
+                "missing_skills_json": "[]",
+                "jd_weights_json": json.dumps(jd_weights),
+                "rejected_terms_json": json.dumps(rejected),
+                "vocab_version": VOCAB_VERSION,
+            }
+            insert_assessment(application_id, context["id"], assessment)
+            update_assessment_status(application_id, "failed")
+            return RedirectResponse(url=f"/admin/context/{application_id}?error={urlparse.quote('matcher_failed')}", status_code=303)
+
+        matching_norm, _ = normalize_terms(match["matching_skills"], CANONICAL_SKILLS, SYNONYM_MAP)
+        missing_norm, _ = normalize_terms(match["missing_skills"], CANONICAL_SKILLS, SYNONYM_MAP)
+        matching_norm = [s for s in matching_norm if s in jd_weights]
+
+        confidence_score = compute_confidence_score(jd_weights, matching_norm)
+        try:
+            confidence_score = validate_confidence_score(confidence_score)
+        except ValueError:
+            assessment = {
+                "failure_reason": "score_invalid",
+                "matching_skills_json": json.dumps(matching_norm),
+                "missing_skills_json": json.dumps(missing_norm),
+                "jd_weights_json": json.dumps(jd_weights),
+                "rejected_terms_json": json.dumps(rejected),
+                "vocab_version": VOCAB_VERSION,
+            }
+            insert_assessment(application_id, context["id"], assessment)
+            update_assessment_status(application_id, "failed")
+            return RedirectResponse(url=f"/admin/context/{application_id}?error={urlparse.quote('score_invalid')}", status_code=303)
+
+        confidence_label = label_confidence(confidence_score)
+        conflict = signal_conflict(match["fit_score"], confidence_label)
+        status = "weak_jd" if parsed.get("weak_jd") else "completed"
+
+        assessment = {
+            "fit_score": match["fit_score"],
+            "fit_confidence": confidence_label,
+            "confidence_score": confidence_score,
+            "signal_conflict": conflict,
+            "matching_skills_json": json.dumps(matching_norm),
+            "missing_skills_json": json.dumps(missing_norm),
+            "jd_weights_json": json.dumps(jd_weights),
+            "rejected_terms_json": json.dumps(rejected),
+            "failure_reason": None,
+            "vocab_version": VOCAB_VERSION,
+        }
+
+        insert_assessment(application_id, context["id"], assessment)
+        update_assessment_status(application_id, status)
+        return RedirectResponse(url=f"/admin/context/{application_id}?success={urlparse.quote('Assessment complete')}", status_code=303)
+    except Exception as e:
+        safe_msg = f"{type(e).__name__}: {str(e)[:160]}"
+        return RedirectResponse(url=f"/admin/context/{application_id}?error={urlparse.quote(safe_msg)}", status_code=303)
