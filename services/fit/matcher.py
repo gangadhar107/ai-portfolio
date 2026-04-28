@@ -13,16 +13,20 @@ def match_resume_to_jd(
     groq_client,
     jd_text: str,
     resume_text: str,
-    canonical_skills: list[str],
+    candidate_skills: list[str],
 ) -> dict:
-    vocab = ", ".join(canonical_skills)
+    skill_list = ", ".join(candidate_skills)
     prompt = (
         "You are comparing a resume to a job description.\n"
         "Return ONLY valid JSON with exactly these keys:\n"
         '{ "matching_skills": [], "missing_skills": [], "fit_score": "high|medium|low" }\n'
         "Rules:\n"
-        "- matching_skills and missing_skills must be chosen ONLY from this canonical vocabulary:\n"
-        f"{vocab}\n"
+        "- The skill list below is already extracted and normalized from the job description.\n"
+        "- matching_skills and missing_skills must be chosen ONLY from this JD-required skill list:\n"
+        f"{skill_list}\n"
+        "- Put a skill in matching_skills only when the resume gives direct or strongly related evidence for it.\n"
+        "- Put every JD-required skill without resume evidence in missing_skills.\n"
+        "- Do not add resume skills that are not present in the JD-required skill list.\n"
         "- fit_score must be exactly one of: high, medium, low\n"
         "- Keep lists deduplicated.\n\n"
         "JOB DESCRIPTION:\n"

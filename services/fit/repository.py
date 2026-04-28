@@ -17,7 +17,8 @@ def get_application(application_id: int) -> dict | None:
         cur.execute(
             """
             SELECT id, company_name, position, date_applied, outcome, ref_code, notes,
-                   outreach_channel, contact_person, role_category, followed_up, follow_up_date, follow_up_response
+                   outreach_channel, contact_person, role_category, followed_up, follow_up_date,
+                   follow_up_response, assessment_status
             FROM applications
             WHERE id = %s
             """,

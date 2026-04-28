@@ -931,7 +931,8 @@ async def assess_fit(request: Request, application_id: int = Form(...)):
             return RedirectResponse(url=f"/admin/context/{application_id}?error={urlparse.quote('weighted_total_zero')}", status_code=303)
 
         try:
-            match = match_resume_to_jd(client, context["jd_text"], context["resume_text"], CANONICAL_SKILLS)
+            candidate_skills = list(jd_weights.keys())
+            match = match_resume_to_jd(client, context["jd_text"], context["resume_text"], candidate_skills)
         except ValueError:
             assessment = {
                 "failure_reason": "matcher_invalid",
