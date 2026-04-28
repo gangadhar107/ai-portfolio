@@ -150,7 +150,7 @@ def get_assessment_history(application_id: int, limit: int = 10) -> list[dict]:
     with get_cursor() as cur:
         cur.execute(
             """
-            SELECT id, created_at, fit_score, fit_confidence, confidence_score, signal_conflict, failure_reason
+            SELECT id, context_id, created_at, fit_score, fit_confidence, confidence_score, signal_conflict, failure_reason
             FROM fit_assessments
             WHERE application_id = %s
             ORDER BY created_at DESC, id DESC

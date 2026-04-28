@@ -67,6 +67,11 @@
                 <div><strong>Fit:</strong> {{ latest.fit_confidence }} ({{ latest.confidence_score }})</div>
                 {% endif %}
             </div>
+            {% elif context %}
+            <div style="margin-top:12px;">
+                <div><strong>Status:</strong> not_run</div>
+                <div>This active context has not been assessed yet.</div>
+            </div>
             {% endif %}
         </div>
 

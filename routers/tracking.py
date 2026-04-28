@@ -794,14 +794,20 @@ async def context_page(request: Request, application_id: int):
         history = get_assessment_history(application_id, limit=10)
 
         latest = None
-        if history:
+        current_context_id = context.get("id") if context else None
+        current_history = [
+            row for row in history
+            if current_context_id is not None and row.get("context_id") == current_context_id
+        ]
+        if current_history:
             app_status = (app.get("assessment_status") or "not_run").strip().lower()
+            current_latest = current_history[0]
             latest = {
-                "created_at": history[0].get("created_at"),
+                "created_at": current_latest.get("created_at"),
                 "status": app_status,
-                "failure_reason": history[0].get("failure_reason") if app_status == "failed" else None,
-                "fit_confidence": history[0].get("fit_confidence") if app_status in {"completed", "weak_jd"} else None,
-                "confidence_score": history[0].get("confidence_score") if app_status in {"completed", "weak_jd"} else None,
+                "failure_reason": current_latest.get("failure_reason") if app_status == "failed" else None,
+                "fit_confidence": current_latest.get("fit_confidence") if app_status in {"completed", "weak_jd"} else None,
+                "confidence_score": current_latest.get("confidence_score") if app_status in {"completed", "weak_jd"} else None,
             }
 
         app_view = dict(app)
