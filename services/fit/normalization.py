@@ -1,3 +1,5 @@
+import re
+
 from rapidfuzz import fuzz, process
 
 
@@ -6,6 +8,10 @@ FUZZY_THRESHOLD = 88
 
 def _clean(term: str) -> str:
     return " ".join((term or "").strip().lower().split())
+
+
+def _searchable(term: str) -> str:
+    return " " + re.sub(r"[^a-z0-9+/]+", " ", _clean(term)) + " "
 
 
 def normalize_terms(terms: list[str], canonical_skills: list[str], synonym_map: dict[str, str]) -> tuple[list[str], list[str]]:
@@ -28,6 +34,22 @@ def normalize_terms(terms: list[str], canonical_skills: list[str], synonym_map: 
                 normalized.append(mapped)
             else:
                 rejected.append(raw)
+            continue
+
+        # Parser outputs can be short phrases containing multiple vocabulary terms.
+        # Example: "APIs, data flows, and backend systems" should preserve all three.
+        searchable = _searchable(t)
+        phrase_hits = []
+        for variant, canonical in synonym_map.items():
+            mapped = _clean(canonical)
+            if mapped in canonical_set and _searchable(variant).strip() in searchable:
+                phrase_hits.append(mapped)
+        phrase_hits.extend(
+            skill for skill in canonical_skills
+            if _searchable(skill).strip() in searchable
+        )
+        if phrase_hits:
+            normalized.extend(phrase_hits)
             continue
 
         match = process.extractOne(

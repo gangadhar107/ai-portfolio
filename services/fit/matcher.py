@@ -46,7 +46,7 @@ def match_resume_to_jd(
     if not isinstance(matching_skills, list) or not isinstance(missing_skills, list) or not isinstance(fit_score, str):
         raise ValueError("matcher_invalid")
 
-    fit_score = fit_score.strip()
+    fit_score = fit_score.strip().lower()
     if fit_score not in {"high", "medium", "low"}:
         raise ValueError("matcher_invalid")
 

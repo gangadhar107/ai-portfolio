@@ -799,7 +799,7 @@ async def context_page(request: Request, application_id: int):
             latest = {
                 "created_at": history[0].get("created_at"),
                 "status": app_status,
-                "failure_reason": history[0].get("failure_reason"),
+                "failure_reason": history[0].get("failure_reason") if app_status == "failed" else None,
                 "fit_confidence": history[0].get("fit_confidence") if app_status in {"completed", "weak_jd"} else None,
                 "confidence_score": history[0].get("confidence_score") if app_status in {"completed", "weak_jd"} else None,
             }
