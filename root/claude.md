@@ -36,7 +36,7 @@ This is not a standard portfolio. It is a three-stage feedback loop:
 ## Core Rules — Never Violate These
 
 1. Never commit .env to GitHub under any circumstances
-2. Never delete existing code — comment out, never delete
+2. Avoid deleting code unless it is clearly dead, replaced, and not referenced anywhere
 3. Never use ORMs — write raw SQL with psycopg (psycopg3)
 4. Never add complexity that is not in the current phase scope
 5. Never skip a phase milestone before moving to the next
@@ -90,13 +90,9 @@ ai-portfolio/
 ├── database/
 │   └── __init__.py           # get_connection(), get_cursor() via psycopg (psycopg3)
 ├── services/
-│   └── fit/                   # v1.3 Fit Engine (Groq extract + deterministic scoring)
-│       ├── vocabulary.py
-│       ├── normalization.py
-│       ├── jd_parser.py
-│       ├── matcher.py
-│       ├── scoring.py
-│       └── repository.py
+│   └── fit/                   # Fit Engine (single Groq call; stores raw JSON)
+│       ├── evaluator.py       # Single Groq call that returns structured JSON assessment
+│       └── repository.py      # Raw SQL read/write for context + assessments + dashboard summary
 ├── templates/
 │   ├── base.html             # Jinja2 base layout — dark theme, nav, footer
 │   ├── home.html             # Home page
@@ -141,14 +137,20 @@ Outcome values are validated in code and treated as a controlled vocabulary: `pe
 ### application_context (v1.3)
 - Stores the active JD + resume text for a specific application.
 - Enforces one active context per application (`is_active = TRUE`).
+- Also stores `industry` (Industry / Domain), used by Fit Engine prompts.
 
 ### fit_assessments (v1.3)
 - Stores assessment attempts (history) and the latest usable assessment for dashboard display.
-- JSONB fields: `matching_skills`, `missing_skills`, `jd_weights`, `rejected_terms`
-- Key text fields:
-  - `fit_score` (from matcher LLM)
-  - `fit_confidence` and `confidence_score` (deterministic Python scoring)
-  - `failure_reason` (controlled reasons like `jd_extraction_invalid`, `jd_extraction_empty`, `matcher_invalid`, `weighted_total_zero`, `score_invalid`)
+- Current Fit Engine stores:
+  - `raw_assessment` (JSONB) — the full parsed Groq response
+  - `confidence_score` (FLOAT) — stores `total_score / 100` (e.g. 78 → 0.78)
+  - `fit_confidence` (TEXT) — derived from `total_score`:
+    - >= 70 → `high`
+    - >= 40 → `medium`
+    - < 40 → `low`
+  - `fit_score` (TEXT) — reused to store `recommendation` (`apply_as_is` / `revise_first` / `significant_mismatch`)
+  - `failure_reason` (TEXT) — `api_error`, `json_parse_failed`, `missing_keys`, `score_invalid`, etc.
+- Legacy columns may still exist (`matching_skills`, `missing_skills`, `jd_weights`, `rejected_terms`, `signal_conflict`, `vocab_version`) but are no longer populated.
 
 **Key relationship:** ref_code connects all three tables.
 Application has a ref_code. Visits log that ref_code. Join all three for full funnel view.
@@ -268,11 +270,17 @@ Do not use Redis or database caching — unnecessary complexity.
 - `get_cursor()` — returns connection + cursor together
 
 ### services/fit (v1.3 Fit Engine)
-- `jd_parser.py` — Groq extracts JD requirements into `must_have / important / nice_to_have` JSON. Non-string items make the extraction invalid.
-- `normalization.py` — normalizes skill terms onto a canonical vocabulary using synonyms + RapidFuzz; creates weighted JD weights.
-- `matcher.py` — Groq produces canonical `matching_skills / missing_skills` + `fit_score` JSON. Non-string items make the match invalid.
-- `scoring.py` — deterministic confidence score in Python + validation (`score_invalid` if out-of-range or non-finite).
-- `repository.py` — raw SQL read/write for `application_context` and `fit_assessments`; dashboard query uses "latest attempt vs latest usable assessment" semantics.
+- `evaluator.py` — single Groq call that returns the full assessment JSON:
+  - `categories` (5 category objects with `score`, `reasons`, `weaknesses`)
+  - `total_score` (0–100)
+  - `dealbreaker_gaps`, `missed_opportunities`, `rewrite_suggestions`
+  - `recommendation`, `recommendation_reasoning`
+- `repository.py` — raw SQL read/write for `application_context` + `fit_assessments`; dashboard query uses "latest attempt vs latest usable assessment" semantics.
+
+### Fit Engine Notes
+- The Fit Engine is private-admin only (dashboard + context editor).
+- `/admin/assess-fit` returns JSON (success or error) and does not redirect.
+- Groq may return token-limit errors (TPM) for very large JD/resume; reduce input size if that happens.
 
 ---
 

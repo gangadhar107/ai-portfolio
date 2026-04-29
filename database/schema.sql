@@ -94,3 +94,10 @@ ON application_context(application_id);
 
 CREATE INDEX IF NOT EXISTS idx_fit_assessments_application_latest
 ON fit_assessments(application_id, created_at DESC, id DESC);
+
+-- v1.4 (replacement fit assessment pipeline)
+ALTER TABLE fit_assessments
+ADD COLUMN IF NOT EXISTS raw_assessment JSONB;
+
+ALTER TABLE application_context
+ADD COLUMN IF NOT EXISTS industry TEXT;

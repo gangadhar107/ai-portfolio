@@ -21,7 +21,6 @@ def _make_app_row(
     fit_confidence=None,
     confidence_score=None,
     fit_score=None,
-    signal_conflict=None,
     failure_reason=None,
     followed_up=False,
     outcome="pending",
@@ -47,7 +46,6 @@ def _make_app_row(
         "fit_score": fit_score,
         "fit_confidence": fit_confidence,
         "confidence_score": confidence_score,
-        "signal_conflict": signal_conflict,
         "failure_reason": failure_reason,
     }
 
@@ -70,6 +68,17 @@ def _make_app_dict(app_id=1):
         "follow_up_response": None,
         "assessment_status": "not_run",
     }
+
+def _make_groq_client(content: str):
+    client = MagicMock()
+    resp = MagicMock()
+    choice = MagicMock()
+    msg = MagicMock()
+    msg.content = content
+    choice.message = msg
+    resp.choices = [choice]
+    client.chat.completions.create.return_value = resp
+    return client
 
 
 def _extract_json_data(resp_text: str) -> list[dict]:
@@ -135,6 +144,7 @@ class TestContextRoutes:
         mock_app.return_value = _make_app_dict()
         mock_ctx.return_value = {
             "id": 10, "application_id": 1,
+            "industry": "SaaS",
             "jd_text": "Test JD content here",
             "resume_text": "Test resume content here",
             "created_at": datetime.now(), "is_active": True,
@@ -189,7 +199,7 @@ class TestContextRoutes:
             follow_redirects=False,
         )
         assert resp.status_code != 500
-        mock_upsert.assert_called_once_with(1, jd, resume)
+        mock_upsert.assert_called_once_with(1, jd, resume, None)
 
 
 # ════════════════════════════════════════════════════════════════════════
@@ -209,10 +219,25 @@ class TestAssessFitRoutes:
             cookies={"auth": valid_auth_cookie},
             follow_redirects=False,
         )
-        assert resp.status_code != 500
-        # Should redirect with error
-        assert resp.status_code == 303
-        assert "error" in (resp.headers.get("location", "") or "").lower()
+        assert resp.status_code == 400
+        body = resp.json()
+        assert body["ok"] is False
+        mock_insert.assert_not_called()
+
+    @patch("services.fit.repository.insert_assessment")
+    @patch("services.fit.repository.get_active_context")
+    def test_a1b_industry_required(self, mock_ctx, mock_insert, client, valid_auth_cookie):
+        """A1b: POST assess-fit with blank industry — error, no insert_assessment."""
+        mock_ctx.return_value = {"id": 10, "industry": "   ", "jd_text": "JD", "resume_text": "Resume"}
+        resp = client.post(
+            "/admin/assess-fit",
+            data={"application_id": "1"},
+            cookies={"auth": valid_auth_cookie},
+            follow_redirects=False,
+        )
+        assert resp.status_code == 400
+        body = resp.json()
+        assert "Industry / Domain is required" in (body.get("error") or "")
         mock_insert.assert_not_called()
 
     @patch("services.fit.repository.update_assessment_status")
@@ -220,21 +245,30 @@ class TestAssessFitRoutes:
     @patch("services.fit.repository.get_active_context")
     def test_a2_successful_assessment(self, mock_ctx, mock_insert, mock_status, client, valid_auth_cookie):
         """A2: POST assess-fit with valid context, successful assessment → status=completed."""
-        mock_ctx.return_value = {"id": 10, "jd_text": "Need SQL and Python skills for this role", "resume_text": "I know SQL and Python very well"}
+        mock_ctx.return_value = {
+            "id": 10,
+            "industry": "fintech",
+            "jd_text": "Need SQL and Python skills for this role",
+            "resume_text": "I know SQL and Python very well",
+        }
 
-        with patch("services.fit.jd_parser.parse_job_description") as mock_parser, \
-             patch("services.fit.matcher.match_resume_to_jd") as mock_matcher:
-            mock_parser.return_value = {
-                "must_have": ["SQL", "Python"],
-                "important": [],
-                "nice_to_have": [],
-                "weak_jd": False,
-            }
-            mock_matcher.return_value = {
-                "matching_skills": ["sql", "python"],
-                "missing_skills": [],
-                "fit_score": "high",
-            }
+        assessment = {
+            "categories": {
+                "keyword_skills_match": {"score": 25, "reasons": ["a", "b", "c"], "weaknesses": ["x"]},
+                "experience_relevance": {"score": 20, "reasons": ["a", "b"], "weaknesses": ["x"]},
+                "impact_quantification": {"score": 15, "reasons": ["a", "b"], "weaknesses": ["x"]},
+                "structure_readability": {"score": 12, "reasons": ["a", "b"], "weaknesses": ["x"]},
+                "customization_signal": {"score": 8, "reasons": ["a", "b"], "weaknesses": ["x"]},
+            },
+            "total_score": 80,
+            "dealbreaker_gaps": [],
+            "missed_opportunities": [],
+            "rewrite_suggestions": ["Rewrite bullet 1"],
+            "recommendation": "revise_first",
+            "recommendation_reasoning": "Needs tailoring.",
+        }
+
+        with patch("services.fit.evaluator.evaluate_fit", return_value=assessment):
             resp = client.post(
                 "/admin/assess-fit",
                 data={"application_id": "1"},
@@ -242,29 +276,42 @@ class TestAssessFitRoutes:
                 follow_redirects=False,
             )
 
-        assert resp.status_code != 500
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["ok"] is True
+        assert body["assessment"]["total_score"] == 80
         mock_status.assert_called_once_with(1, "completed")
+        mock_insert.assert_called_once()
 
     @patch("services.fit.repository.update_assessment_status")
     @patch("services.fit.repository.insert_assessment", return_value=1)
     @patch("services.fit.repository.get_active_context")
     def test_a3_weak_jd_outcome(self, mock_ctx, mock_insert, mock_status, client, valid_auth_cookie):
-        """A3: POST assess-fit with weak_jd outcome → status=weak_jd."""
-        mock_ctx.return_value = {"id": 10, "jd_text": "Nice to have Excel for this role", "resume_text": "I know Excel and more things listed here"}
+        """A3: POST assess-fit with another valid assessment → status=completed."""
+        mock_ctx.return_value = {
+            "id": 10,
+            "industry": "SaaS",
+            "jd_text": "Nice to have Excel for this role",
+            "resume_text": "I know Excel and more things listed here",
+        }
 
-        with patch("services.fit.jd_parser.parse_job_description") as mock_parser, \
-             patch("services.fit.matcher.match_resume_to_jd") as mock_matcher:
-            mock_parser.return_value = {
-                "must_have": [],
-                "important": [],
-                "nice_to_have": ["Excel"],
-                "weak_jd": True,
-            }
-            mock_matcher.return_value = {
-                "matching_skills": ["excel"],
-                "missing_skills": [],
-                "fit_score": "high",
-            }
+        assessment = {
+            "categories": {
+                "keyword_skills_match": {"score": 12, "reasons": ["a", "b", "c"], "weaknesses": ["x"]},
+                "experience_relevance": {"score": 12, "reasons": ["a", "b"], "weaknesses": ["x"]},
+                "impact_quantification": {"score": 10, "reasons": ["a", "b"], "weaknesses": ["x"]},
+                "structure_readability": {"score": 10, "reasons": ["a", "b"], "weaknesses": ["x"]},
+                "customization_signal": {"score": 5, "reasons": ["a", "b"], "weaknesses": ["x"]},
+            },
+            "total_score": 49,
+            "dealbreaker_gaps": [],
+            "missed_opportunities": [],
+            "rewrite_suggestions": ["Rewrite bullet 1"],
+            "recommendation": "revise_first",
+            "recommendation_reasoning": "Missing specifics.",
+        }
+
+        with patch("services.fit.evaluator.evaluate_fit", return_value=assessment):
             resp = client.post(
                 "/admin/assess-fit",
                 data={"application_id": "1"},
@@ -272,18 +319,18 @@ class TestAssessFitRoutes:
                 follow_redirects=False,
             )
 
-        assert resp.status_code != 500
-        mock_status.assert_called_once_with(1, "weak_jd")
+        assert resp.status_code == 200
+        mock_status.assert_called_once_with(1, "completed")
 
     @patch("services.fit.repository.update_assessment_status")
     @patch("services.fit.repository.insert_assessment", return_value=1)
     @patch("services.fit.repository.get_active_context")
     def test_a4_jd_extraction_invalid(self, mock_ctx, mock_insert, mock_status, client, valid_auth_cookie):
-        """A4: POST assess-fit with jd_extraction_invalid → status=failed, correct failure_reason."""
-        mock_ctx.return_value = {"id": 10, "jd_text": "Bad JD", "resume_text": "Resume"}
+        """A4: POST assess-fit with evaluator invalid response → status=failed, failure_reason=missing_keys."""
+        mock_ctx.return_value = {"id": 10, "industry": "SaaS", "jd_text": "Bad JD", "resume_text": "Resume"}
+        from services.fit.evaluator import EvaluatorInvalidError
 
-        with patch("services.fit.jd_parser.parse_job_description") as mock_parser:
-            mock_parser.side_effect = ValueError("jd_extraction_invalid")
+        with patch("services.fit.evaluator.evaluate_fit", side_effect=EvaluatorInvalidError("missing_keys")):
             resp = client.post(
                 "/admin/assess-fit",
                 data={"application_id": "1"},
@@ -291,28 +338,20 @@ class TestAssessFitRoutes:
                 follow_redirects=False,
             )
 
-        assert resp.status_code != 500
+        assert resp.status_code == 500
         mock_status.assert_called_once_with(1, "failed")
         insert_call = mock_insert.call_args
-        assessment_dict = insert_call[0][2]
-        assert assessment_dict["failure_reason"] == "jd_extraction_invalid"
+        assert insert_call[0][5] == "missing_keys"
 
     @patch("services.fit.repository.update_assessment_status")
     @patch("services.fit.repository.insert_assessment", return_value=1)
     @patch("services.fit.repository.get_active_context")
     def test_a5_matcher_failed(self, mock_ctx, mock_insert, mock_status, client, valid_auth_cookie):
-        """A5: POST assess-fit with matcher_failed (timeout) → status=failed, failure_reason=matcher_failed."""
-        mock_ctx.return_value = {"id": 10, "jd_text": "Need SQL and Python skills", "resume_text": "I know SQL and Python"}
+        """A5: POST assess-fit with evaluator failure → status=failed, failure_reason=api_error."""
+        mock_ctx.return_value = {"id": 10, "industry": "Fintech", "jd_text": "Need SQL and Python skills", "resume_text": "I know SQL and Python"}
+        from services.fit.evaluator import EvaluatorFailedError
 
-        with patch("services.fit.jd_parser.parse_job_description") as mock_parser, \
-             patch("services.fit.matcher.match_resume_to_jd") as mock_matcher:
-            mock_parser.return_value = {
-                "must_have": ["SQL", "Python"],
-                "important": [],
-                "nice_to_have": [],
-                "weak_jd": False,
-            }
-            mock_matcher.side_effect = TimeoutError("Connection timed out")
+        with patch("services.fit.evaluator.evaluate_fit", side_effect=EvaluatorFailedError("api_error")):
             resp = client.post(
                 "/admin/assess-fit",
                 data={"application_id": "1"},
@@ -320,11 +359,10 @@ class TestAssessFitRoutes:
                 follow_redirects=False,
             )
 
-        assert resp.status_code != 500
+        assert resp.status_code == 500
         mock_status.assert_called_once_with(1, "failed")
         insert_call = mock_insert.call_args
-        assessment_dict = insert_call[0][2]
-        assert assessment_dict["failure_reason"] == "matcher_failed"
+        assert insert_call[0][5] == "api_error"
 
     def test_a6_no_auth_redirects(self, client):
         """A6: POST assess-fit with no auth — 403, assessment never runs."""
@@ -373,8 +411,7 @@ class TestDashboardRoutes:
             assessment_status="completed",
             fit_confidence="high",
             confidence_score=0.85,
-            fit_score="high",
-            signal_conflict=False,
+            fit_score="revise_first",
             context_id=10,
         )]
         resp = client.get("/dashboard", cookies={"auth": valid_auth_cookie})
@@ -384,6 +421,7 @@ class TestDashboardRoutes:
         assert row["priority"] in {"high", "medium", "low"}
         assert isinstance(row["disagreement"], bool)
         assert row["fit_confidence"] in {"high", "medium", "low"}
+        assert row["total_score"] == 85
 
     @patch("routers.intelligence.get_cached_insights", return_value=[])
     @patch("services.fit.repository.get_dashboard_fit_summary")

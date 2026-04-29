@@ -38,6 +38,9 @@
         <div class="card" style="margin-top:20px;">
             <h2 style="margin-top:0;">Context</h2>
             <form method="post" action="/admin/context/{{ app.id }}">
+                <label style="display:block; margin-top:12px;">Industry / Domain</label>
+                <input name="industry" type="text" style="width:100%;" placeholder="e.g. SaaS, Fintech, AI/ML, E-commerce" value="{{ context.industry if context and context.industry else '' }}">
+
                 <label style="display:block; margin-top:12px;">Job Description (JD)</label>
                 <textarea name="jd_text" rows="10" style="width:100%;" required>{{ context.jd_text if context else "" }}</textarea>
 
@@ -63,10 +66,145 @@
                 {% if latest.failure_reason %}
                 <div><strong>Failure:</strong> {{ latest.failure_reason }}</div>
                 {% endif %}
-                {% if latest.fit_confidence %}
-                <div><strong>Fit:</strong> {{ latest.fit_confidence }} ({{ latest.confidence_score }})</div>
-                {% endif %}
             </div>
+                {% if latest.status == "completed" and latest.assessment %}
+                <div style="margin-top:16px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size:34px; font-weight:700; letter-spacing:0.5px;">
+                        {{ latest.total_score }} / 100
+                    </div>
+
+                    <div style="margin-top:8px;">
+                        <strong>Recommendation:</strong>
+                        {% if latest.recommendation == "apply_as_is" %}
+                            Apply as-is
+                        {% elif latest.recommendation == "revise_first" %}
+                            Revise first
+                        {% elif latest.recommendation == "significant_mismatch" %}
+                            Significant mismatch
+                        {% else %}
+                            {{ latest.recommendation }}
+                        {% endif %}
+                    </div>
+
+                    <div style="margin-top:8px;">
+                        <strong>Recommendation Reasoning:</strong>
+                        <div style="margin-top:6px; opacity:0.95;">{{ latest.assessment.recommendation_reasoning }}</div>
+                    </div>
+
+                    <div style="margin-top:16px;">
+                        <h3 style="margin:0 0 10px 0;">Category Breakdown</h3>
+
+                        <div style="margin-top:10px;">
+                            <div><strong>Keyword & Skills Match</strong> — {{ latest.assessment.categories.keyword_skills_match.score }}/30</div>
+                            <ul style="margin:6px 0 0 18px;">
+                                {% for r in latest.assessment.categories.keyword_skills_match.reasons %}
+                                <li>{{ r }}</li>
+                                {% endfor %}
+                            </ul>
+                            <ul style="margin:6px 0 0 18px; opacity:0.95;">
+                                {% for w in latest.assessment.categories.keyword_skills_match.weaknesses %}
+                                <li>{{ w }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <div style="margin-top:14px;">
+                            <div><strong>Experience Relevance</strong> — {{ latest.assessment.categories.experience_relevance.score }}/25</div>
+                            <ul style="margin:6px 0 0 18px;">
+                                {% for r in latest.assessment.categories.experience_relevance.reasons %}
+                                <li>{{ r }}</li>
+                                {% endfor %}
+                            </ul>
+                            <ul style="margin:6px 0 0 18px; opacity:0.95;">
+                                {% for w in latest.assessment.categories.experience_relevance.weaknesses %}
+                                <li>{{ w }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <div style="margin-top:14px;">
+                            <div><strong>Impact & Quantification</strong> — {{ latest.assessment.categories.impact_quantification.score }}/20</div>
+                            <ul style="margin:6px 0 0 18px;">
+                                {% for r in latest.assessment.categories.impact_quantification.reasons %}
+                                <li>{{ r }}</li>
+                                {% endfor %}
+                            </ul>
+                            <ul style="margin:6px 0 0 18px; opacity:0.95;">
+                                {% for w in latest.assessment.categories.impact_quantification.weaknesses %}
+                                <li>{{ w }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <div style="margin-top:14px;">
+                            <div><strong>Structure & Readability</strong> — {{ latest.assessment.categories.structure_readability.score }}/15</div>
+                            <ul style="margin:6px 0 0 18px;">
+                                {% for r in latest.assessment.categories.structure_readability.reasons %}
+                                <li>{{ r }}</li>
+                                {% endfor %}
+                            </ul>
+                            <ul style="margin:6px 0 0 18px; opacity:0.95;">
+                                {% for w in latest.assessment.categories.structure_readability.weaknesses %}
+                                <li>{{ w }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <div style="margin-top:14px;">
+                            <div><strong>Customization Signal</strong> — {{ latest.assessment.categories.customization_signal.score }}/10</div>
+                            <ul style="margin:6px 0 0 18px;">
+                                {% for r in latest.assessment.categories.customization_signal.reasons %}
+                                <li>{{ r }}</li>
+                                {% endfor %}
+                            </ul>
+                            <ul style="margin:6px 0 0 18px; opacity:0.95;">
+                                {% for w in latest.assessment.categories.customization_signal.weaknesses %}
+                                <li>{{ w }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:16px;">
+                        <h3 style="margin:0 0 10px 0;">Dealbreaker Gaps</h3>
+                        {% if latest.assessment.dealbreaker_gaps and latest.assessment.dealbreaker_gaps|length > 0 %}
+                        <ul style="margin:6px 0 0 18px;">
+                            {% for x in latest.assessment.dealbreaker_gaps %}
+                            <li>{{ x }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <div>None</div>
+                        {% endif %}
+                    </div>
+
+                    <div style="margin-top:16px;">
+                        <h3 style="margin:0 0 10px 0;">Missed Opportunities</h3>
+                        {% if latest.assessment.missed_opportunities and latest.assessment.missed_opportunities|length > 0 %}
+                        <ul style="margin:6px 0 0 18px;">
+                            {% for x in latest.assessment.missed_opportunities %}
+                            <li>{{ x }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <div>None</div>
+                        {% endif %}
+                    </div>
+
+                    <div style="margin-top:16px;">
+                        <h3 style="margin:0 0 10px 0;">Rewrite Suggestions</h3>
+                        {% if latest.assessment.rewrite_suggestions and latest.assessment.rewrite_suggestions|length > 0 %}
+                        <ol style="margin:6px 0 0 22px;">
+                            {% for x in latest.assessment.rewrite_suggestions %}
+                            <li style="margin-top:6px;">{{ x }}</li>
+                            {% endfor %}
+                        </ol>
+                        {% else %}
+                        <div>None</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
             {% elif context %}
             <div style="margin-top:12px;">
                 <div><strong>Status:</strong> not_run</div>
@@ -83,9 +221,8 @@
                     <tr>
                         <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1);">#</th>
                         <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1);">Time</th>
-                        <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1);">Fit</th>
-                        <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1);">Score</th>
-                        <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1);">Conflict</th>
+                        <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1);">Total Score</th>
+                        <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1);">Recommendation</th>
                         <th style="text-align:left; padding:10px; border-bottom:1px solid rgba(255,255,255,0.1);">Failure</th>
                     </tr>
                 </thead>
@@ -94,9 +231,18 @@
                     <tr>
                         <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.06);">{{ loop.index }}</td>
                         <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.06);">{{ row.created_at }}</td>
-                        <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.06);">{{ row.fit_confidence or "" }}</td>
-                        <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.06);">{{ row.confidence_score if row.confidence_score is not none else "" }}</td>
-                        <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.06);">{{ "Yes" if row.signal_conflict else "No" }}</td>
+                        <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.06);">{{ row.total_score if row.total_score is not none else "" }}</td>
+                        <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                            {% if row.recommendation == "apply_as_is" %}
+                                Apply as-is
+                            {% elif row.recommendation == "revise_first" %}
+                                Revise first
+                            {% elif row.recommendation == "significant_mismatch" %}
+                                Significant mismatch
+                            {% else %}
+                                {{ row.recommendation or "" }}
+                            {% endif %}
+                        </td>
                         <td style="padding:10px; border-bottom:1px solid rgba(255,255,255,0.06);">{{ row.failure_reason or "" }}</td>
                     </tr>
                     {% endfor %}

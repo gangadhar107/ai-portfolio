@@ -28,3 +28,6 @@ chroma_db/
 
 # Node (for generate_plan.js)
 node_modules/
+
+# Agent/Browser frames
+.tmp_frames/

@@ -725,7 +725,7 @@
                             <th>Follow-up</th>
                             <th>Context</th>
                             <th>Assessment</th>
-                            <th>Fit</th>
+                            <th>Score</th>
                             <th>Priority</th>
                             <th>Disagreement</th>
                         </tr>
@@ -1010,13 +1010,11 @@
                 }
 
                 let fitCell = '—';
-                if (a.fit_confidence) {
-                    const pct = (typeof a.confidence_score === 'number') ? Math.round(a.confidence_score * 100) : null;
-                    const pctStr = (pct !== null && !Number.isNaN(pct)) ? ' (' + pct + '%)' : '';
-                    fitCell = '<span style="font-size:11px;font-weight:600;color:#e8d44d">' + escHtml(a.fit_confidence) + '</span>' + pctStr;
-                    if (a.signal_conflict) {
-                        fitCell += '<br><span style="font-size:11px;color:#ff4d4d">Conflict</span>';
-                    }
+                if (typeof a.total_score === 'number') {
+                    fitCell = '<span style="font-size:11px;font-weight:700;color:#e8d44d">' + a.total_score + '%</span>';
+                } else if (typeof a.confidence_score === 'number') {
+                    const pct = Math.round(a.confidence_score * 100);
+                    fitCell = '<span style="font-size:11px;font-weight:700;color:#e8d44d">' + pct + '%</span>';
                 }
 
                 let priorityCell = '—';
