@@ -101,37 +101,40 @@
 
 <div class="project-card" data-project="ai-powered-portfolio">
     <h3 class="project-name">AI-Powered Job Application Intelligence System</h3>
-    <p class="project-tagline">A decision engine that turns job applications into a trackable funnel with
-        deterministic fit scoring — not a portfolio, a measurement system.</p>
+    <p class="project-tagline">A self-measuring system that turns job applications into a trackable funnel —
+        with LLM-powered fit assessment, recruiter behavioral tracking, and a private decision dashboard.</p>
 
     <div class="project-sections">
         <div class="project-section">
             <h4>Problem</h4>
             <p>Job applications disappear into a black box. With a 24% recruiter view rate but only 4% call
                 conversion, visibility was not the bottleneck — conversion was. There was no signal for which
-                applications deserved follow-up and which were genuine mismatches.</p>
+                applications deserved follow-up, which were genuine mismatches, and what a hiring manager
+                would actually think of the resume against a specific JD.</p>
         </div>
         <div class="project-section">
             <h4>Solution</h4>
-            <p>Built a two-LLM fit assessment pipeline: a JD parser extracts must-have, important, and nice-to-have
-                skills; a matcher compares them against the resume using a controlled vocabulary with three-layer
-                fuzzy normalisation. A deterministic scoring layer (weights: 3/2/1) produces reproducible confidence
-                scores independent of model variance. Every assessment attempt is auditable with a six-code failure
-                taxonomy separating precondition from execution failures.</p>
+            <p>Built a FastAPI + PostgreSQL backend with application-specific ref-coded tracking links,
+                recruiter visit logging, UTM-based source attribution, and a GA4 behavioral event layer
+                tracking scroll depth, section reach, and active time. Added a Groq-powered fit assessment
+                engine that evaluates resume-JD match across five weighted dimensions — skills match,
+                experience relevance, impact quantification, structure, and customisation signal —
+                returning dealbreaker gaps, missed opportunities, and specific rewritten bullet points.</p>
         </div>
         <div class="project-section">
             <h4>Impact</h4>
-            <p>Identified 4–5 high-intent recruiters through repeat visit tracking and GA4 behavioural events joined
-                to application records via ref code. Diagnosed AI insight inaccuracies in v1.1 as a data quality
-                gap — redesigned the schema before touching the model. Signal conflict diagnostics now surface where
-                LLM qualitative scores diverge from deterministic confidence labels.</p>
+            <p>Diagnosed AI insight inaccuracies in v1 as a data quality gap — redesigned the schema
+                before changing the model. Identified high-intent recruiters through repeat visit signals
+                joined to application records via ref code. Assessment output now gives per-application
+                hiring manager feedback with an apply/revise/mismatch recommendation, replacing gut-feel
+                prioritisation with structured signals.</p>
         </div>
         <div class="project-section">
             <h4>My Role</h4>
-            <p>End-to-end owner across three shipped versions: product framing, schema design, FastAPI backend,
-                two-LLM prompt architecture, vocabulary normalisation, deterministic scoring logic, four-state
-                assessment lifecycle, GA4 behavioural event layer, and private analytics dashboard with
-                priority and disagreement signals derived at read time.</p>
+            <p>End-to-end owner across three shipped versions: problem framing, data model design,
+                FastAPI backend, LLM prompt architecture, five-dimension weighted evaluation framework,
+                assessment lifecycle state management, GA4 behavioral instrumentation, private analytics
+                dashboard, and iterative schema migrations on CockroachDB.</p>
         </div>
     </div>
 
@@ -141,7 +144,7 @@
             <span class="tag">FastAPI</span>
             <span class="tag">PostgreSQL</span>
             <span class="tag">Groq</span>
-            <span class="tag">LLM Pipeline</span>
+            <span class="tag">LLM Evaluation</span>
             <span class="tag">GA4</span>
             <span class="tag">CockroachDB</span>
         </div>
