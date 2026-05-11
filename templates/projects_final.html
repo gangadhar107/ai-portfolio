@@ -153,6 +153,63 @@
     </div>
 </div>
 
+<div class="project-card" data-project="insightagent-ai-analytics-qna">
+    <h3 class="project-name">InsightAgent: AI-Powered Analytics Q&amp;A Agent</h3>
+    <p class="project-tagline">Built a natural-language-to-SQL agent that translates business questions into deterministic
+        metrics and reliable data visualizations with robust hallucination safeguards.</p>
+
+    <div class="project-sections">
+        <div class="project-section">
+            <h4>Problem</h4>
+            <p>Product managers and business stakeholders struggle to extract insights quickly from SQL databases
+                without bottlenecking data analysts. Traditional LLM text-to-SQL tools often hallucinate non-existent
+                tables/columns, produce inconsistent queries for core KPIs (DAU, Retention) based on phrasing, and fail
+                silently on errors. Business-critical metrics require deterministic accuracy that raw LLMs cannot
+                consistently guarantee.</p>
+        </div>
+        <div class="project-section">
+            <h4>Solution</h4>
+            <p>Built a Python synchronous AI agent leveraging Claude Sonnet 4.5 to translate natural language queries
+                into executable SQLite commands. Implemented a YAML-based canonical Metrics Catalog using Jaccard fuzzy
+                matching to bypass the LLM entirely for core KPIs (DAU, ARPU, etc.), guaranteeing deterministic SQL.
+                Added a strict 3-layer hallucination defense pipeline: sqlglot AST validation, bounded execution retry
+                loops, and a post-execution LLM self-check. Shipped an interactive Streamlit chat UI with transparent
+                metric pills, Matplotlib charts, data tables, and collapsible raw SQL.</p>
+        </div>
+        <div class="project-section">
+            <h4>Impact</h4>
+            <p>Achieved a 100% execution success rate and 100% numeric match accuracy against a 25-question evaluation
+                suite covering cohort and comparison queries. Eliminated phrasing-sensitivity bugs for canonical KPIs,
+                increased stakeholder trust, reduced latency and API costs by bypassing LLM generation for frequently
+                asked metrics, and made data access safer by catching errors and requesting clarification on ambiguous
+                prompts.</p>
+        </div>
+        <div class="project-section">
+            <h4>My Role</h4>
+            <p>Designed the orchestration architecture from scratch (no LangChain) to maintain tight control over the
+                pipeline. Engineered the prompts, retry mechanisms, and Jaccard-based metrics layer. Built the full
+                stack: evaluation harness, deterministic synthetic data factory, and Streamlit frontend. Enforced
+                defensive data engineering constraints (AST-injected row caps, read-only execution).</p>
+        </div>
+    </div>
+
+    <div class="project-footer">
+        <div class="tags">
+            <span class="tag">Python</span>
+            <span class="tag">Generative AI</span>
+            <span class="tag">LLMs</span>
+            <span class="tag">Claude Sonnet 4.5</span>
+            <span class="tag">Streamlit</span>
+            <span class="tag">SQL</span>
+            <span class="tag">Data Engineering</span>
+            <span class="tag">sqlglot</span>
+            <span class="tag">Matplotlib</span>
+        </div>
+        <a href="https://github.com/gangadhar107/InsightAgent" target="_blank" rel="noopener"
+            class="project-link">GitHub -></a>
+    </div>
+</div>
+
 <div class="project-card" data-project="Marketing Campaign Performance & Budget Optimization Dashboard">
     <h3 class="project-name">Marketing Campaign Performance & Budget Optimization Dashboard</h3>
     <p class="project-tagline">Built a decision-focused dashboard to diagnose funnel inefficiencies and optimize budget
