@@ -35,7 +35,8 @@ SESSION_TOKEN = hmac.new(
     digestmod=hashlib.sha256
 ).hexdigest()
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+def _get_groq_api_key() -> str:
+    return (os.getenv("GROQ_API_KEY") or "").strip()
 
 
 # ─── In-Memory Cache ───
@@ -172,12 +173,10 @@ def collect_portfolio_data() -> dict:
 
 # Exactly the system prompt the user specified
 GROQ_SYSTEM_PROMPT = (
-    "Return your response STRICTLY as a JSON array. "
+    "Return your response STRICTLY as a JSON object with one top-level key: insights. "
     "No preamble, no explanation, no markdown fences. "
-    "Just the raw JSON array. "
-    "Format: "
-    '[{"type": "conversion|outreach|timing|pattern|warning", '
-    '"headline": "", "explanation": "", "action": ""}]'
+    "Schema: "
+    '{"insights":[{"type":"conversion|outreach|timing|pattern|warning","headline":"","explanation":"","action":""}]}'
 )
 
 # Fallback when Groq fails or is unavailable
@@ -214,26 +213,66 @@ def generate_insights(data: dict) -> list:
     if len(data.get("applications", [])) < 3:
         return NOT_ENOUGH_DATA_INSIGHTS
 
-    # Skip if no API key configured
-    if not GROQ_API_KEY:
+    api_key = _get_groq_api_key()
+    if not api_key:
         print("[Intelligence] GROQ_API_KEY not set — returning fallback")
         return FALLBACK_INSIGHTS
 
     try:
         from groq import Groq
 
-        client = Groq(api_key=GROQ_API_KEY, timeout=5.0)
+        client = Groq(api_key=api_key, timeout=5.0)
 
-        # Build user prompt with the actual data
+        applications = data.get("applications", []) or []
+        visits = data.get("visits", []) or []
+
+        def _clamp_str(x: object, max_len: int) -> str:
+            s = str(x or "")
+            if len(s) <= max_len:
+                return s
+            return s[:max_len] + "…"
+
+        applications_for_llm = []
+        for a in applications[:25]:
+            applications_for_llm.append({
+                "id": a.get("id"),
+                "company_name": _clamp_str(a.get("company_name"), 80),
+                "position": _clamp_str(a.get("position"), 80),
+                "date_applied": a.get("date_applied") or "",
+                "outcome": a.get("outcome") or "pending",
+                "outcome_date": a.get("outcome_date") or "",
+                "outreach_channel": a.get("outreach_channel") or "",
+                "role_category": a.get("role_category") or "",
+                "followed_up": bool(a.get("followed_up")) if a.get("followed_up") is not None else False,
+                "follow_up_response": a.get("follow_up_response") or "",
+                "rejection_reason": _clamp_str(a.get("rejection_reason"), 120),
+                "notes": _clamp_str(a.get("notes"), 200),
+                "ref_code": a.get("ref_code") or "",
+            })
+
+        visits_for_llm = []
+        for v in visits[:60]:
+            visits_for_llm.append({
+                "ref_code": v.get("ref_code") or "",
+                "timestamp": v.get("timestamp") or "",
+                "is_return_visit": bool(v.get("is_return_visit")) if v.get("is_return_visit") is not None else False,
+                "visit_source": v.get("visit_source") or "",
+                "time_on_site": v.get("time_on_site") if v.get("time_on_site") is not None else None,
+                "utm_source": v.get("utm_source") or "",
+                "utm_medium": v.get("utm_medium") or "",
+                "country": v.get("country") or "",
+            })
+
+        # Build user prompt with condensed data to avoid token limits
         user_prompt = (
             "Analyse this job search portfolio data and return actionable insights.\n\n"
             "Use the richer v1.2 context fields when present:\n"
             "- applications: outreach_channel, role_category, followed_up, follow_up_response, outcome_date\n"
             "- visits: is_return_visit, visit_source, time_on_site, utm_source, utm_medium\n\n"
-            f"Applications ({len(data['applications'])} total):\n"
-            f"{json.dumps(data['applications'], indent=2)}\n\n"
-            f"Portfolio Visits ({len(data['visits'])} total):\n"
-            f"{json.dumps(data['visits'], indent=2)}\n\n"
+            f"Applications (showing up to 25 of {len(applications)}):\n"
+            f"{json.dumps(applications_for_llm, ensure_ascii=False)}\n\n"
+            f"Portfolio Visits (showing up to 60 of {len(visits)}):\n"
+            f"{json.dumps(visits_for_llm, ensure_ascii=False)}\n\n"
             "Focus on: conversion patterns, outreach effectiveness, "
             "timing patterns, and anything concerning. "
             "Return 3 to 6 insights."
@@ -255,20 +294,13 @@ def generate_insights(data: dict) -> list:
         # Parse the JSON response
         parsed = json.loads(raw)
 
-        # Handle both {"insights": [...]} wrapper and raw [...]
-        if isinstance(parsed, dict):
-            # Groq might wrap it in a key — extract the list
-            for key in parsed:
-                if isinstance(parsed[key], list):
-                    parsed = parsed[key]
-                    break
-            else:
-                print(f"[Intelligence] Unexpected dict structure: {list(parsed.keys())}")
-                return FALLBACK_INSIGHTS
-
-        if not isinstance(parsed, list):
-            print(f"[Intelligence] Expected list, got {type(parsed).__name__}")
+        if not isinstance(parsed, dict):
+            print(f"[Intelligence] Expected dict, got {type(parsed).__name__}")
             return FALLBACK_INSIGHTS
+        if not isinstance(parsed.get("insights"), list):
+            print(f"[Intelligence] Missing insights list: keys={list(parsed.keys())}")
+            return FALLBACK_INSIGHTS
+        parsed = parsed["insights"]
 
         # Validate each insight has the required keys
         validated = []
@@ -350,4 +382,7 @@ async def refresh_insights(request: Request):
     insights = generate_insights(data)
     set_cached_insights(insights)
 
-    return {"insights": insights}
+    accept = (request.headers.get("accept") or "").lower()
+    if "application/json" in accept:
+        return {"insights": insights}
+    return RedirectResponse(url="/insights", status_code=303)
