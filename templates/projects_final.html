@@ -99,6 +99,51 @@
         grounded in real problems.</p>
 </section>
 
+<div class="project-card" data-project="pdf-rag-agent">
+    <h3 class="project-name">PDF RAG Agent: Production Single-Document RAG &amp; Analytics System</h3>
+    <p class="project-tagline">A high-throughput RAG engine built without heavy frameworks — featuring hybrid search, parallelized map-reduce summarization, real-time SSE streaming, and a self-healing ingestion pipeline.</p>
+
+    <div class="project-sections">
+        <div class="project-section">
+            <h4>Problem</h4>
+            <p>Standard RAG implementations often rely on bloated orchestrator frameworks that obscure failure modes and perform poorly on large, structured 150+ page documents like 10-K filings. Pure vector search misses exact keyword matches (like financial table codes), while long-running LLM summarization tasks block the HTTP request thread and freeze the UI.</p>
+        </div>
+        <div class="project-section">
+            <h4>Solution</h4>
+            <p>Engineered a lean, zero-framework RAG core using Python, FastAPI, React/TypeScript, and PostgreSQL (<code>pgvector</code>). Implemented a hybrid retrieval engine combining HNSW vector similarity with GIN full-text search fused via Reciprocal Rank Fusion (RRF), alongside conversational query rewriting. Built a multi-threaded map-reduce summarization engine, real-time Server-Sent Events (SSE) progress streaming, and a resilient, idempotent database pipeline with jittered backoff retries against API rate limits (HTTP 429).</p>
+        </div>
+        <div class="project-section">
+            <h4>Impact</h4>
+            <p>Reduced map-reduce document summarization latency on 150-page financial reports from ~4 minutes to under 25 seconds (a 10x speedup). Eliminated thundering-herd API rate-limit crashes by staggering worker threads, achieved sub-50ms hybrid retrieval times, and ensured 100% ingestion resumability across network drops and quota resets.</p>
+        </div>
+        <div class="project-section">
+            <h4>My Role</h4>
+            <p>End-to-end architect and developer: designed the PostgreSQL schema, hybrid search algorithms (HNSW + GIN + RRF), multi-threaded ingestion pipeline, FastAPI REST &amp; SSE endpoints, React/TypeScript frontend with fallback status polling, and Google Cloud Run deployment configuration.</p>
+        </div>
+    </div>
+
+    <div class="project-footer">
+        <div class="tags">
+            <span class="tag">Python</span>
+            <span class="tag">FastAPI</span>
+            <span class="tag">React</span>
+            <span class="tag">TypeScript</span>
+            <span class="tag">PostgreSQL</span>
+            <span class="tag">pgvector</span>
+            <span class="tag">Gemini API</span>
+            <span class="tag">RAG Architecture</span>
+            <span class="tag">Hybrid Search</span>
+            <span class="tag">Cloud Run</span>
+        </div>
+        <div class="project-links" style="display: flex; gap: 1rem; align-items: center;">
+            <a href="https://pdf-rag-agent-hgz1htx7m-gangadharallam2001-5390s-projects.vercel.app/" target="_blank" rel="noopener"
+                class="project-link">Live Demo -></a>
+            <a href="https://github.com/gangadhar107/PDF-RAG-Agent" target="_blank" rel="noopener"
+                class="project-link">GitHub -></a>
+        </div>
+    </div>
+</div>
+
 <div class="project-card" data-project="ai-powered-portfolio">
     <h3 class="project-name">AI-Powered Job Application Intelligence System</h3>
     <p class="project-tagline">A self-measuring system that turns job applications into a trackable funnel —
@@ -210,7 +255,7 @@
 </div>
 
 <div class="project-card" data-project="Marketing Campaign Performance & Budget Optimization Dashboard">
-    <h3 class="project-name">Marketing Campaign Performance & Budget Optimization Dashboard</h3>
+    <h3 class="project-name">Marketing Campaign Performance &amp; Budget Optimization Dashboard</h3>
     <p class="project-tagline">Built a decision-focused dashboard to diagnose funnel inefficiencies and optimize budget
         allocation across multi-language ad campaigns.</p>
 
